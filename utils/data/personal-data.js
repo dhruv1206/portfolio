@@ -1,17 +1,16 @@
 export const personalData = {
-  name: "ABU SAID",
-  profile: '/profile.png',
-  designation: "Software Developer",
-  description: "My name is ABU SAID. I am a professional and enthusiastic programmer in my daily life. I am a quick learner with a self-learning attitude. I love to learn and explore new technologies and am passionate about problem-solving. I love almost all the stacks of web application development and love to make the web more open to the world. My core skill is based on JavaScript and I love to do most of the things using JavaScript. I am available for any kind of job opportunity that suits my skills and interests.",
-  email: 'abusaid7388@gmail.com',
-  phone: '+8801608797655',
-  address: 'Middle Badda, Dhaka, Bangladesh - 1212 ',
-  github: 'https://github.com/said7388',
-  facebook: 'https://www.facebook.com/abusaid.riyaz/',
-  linkedIn: 'https://www.linkedin.com/in/abu-said-bd/',
-  twitter: 'https://twitter.com/said7388',
-  stackOverflow: 'https://stackoverflow.com/users/16840768/abu-said',
-  leetcode: "https://leetcode.com/said3812/",
-  devUsername: "said7388",
-  resume: "https://drive.google.com/file/d/1eyutpKFFhJ9X-qpQGKhUNnVRkB5Wer00/view?usp=sharing"
-}
+    name: "DHRUV AGRAWAL",
+    profile: "/profile.jpeg",
+    designation: "Software Engineer",
+    description:
+        "I am a passionate software engineer with expertise in backend systems, cloud architecture, and building scalable applications. With hands-on experience at companies like MyRik, CarWale, and JioHotstar, I have architected systems serving 150,000+ monthly active users, reduced P99 latency from >1s to <300ms, and optimized infrastructure costs by 95%. I specialize in event-driven architectures, microservices, and high-performance APIs using technologies like Spring Boot, Node.js, Go, and Kubernetes. My experience spans real-time collaboration platforms, AI-enhanced content generation, and mobile applications with 6,500+ downloads. I enjoy solving complex engineering challenges and have solved 1,000+ DSA problems across LeetCode, Codeforces, and CodeChef, achieving Knight rating (1870+) on LeetCode. Open to exciting opportunities where I can contribute, grow, and make a meaningful impact.",
+    email: "agrawaldhruv1006@gmail.com",
+    phone: "+917275615573",
+    address: "Jhansi, Uttar Pradesh, India",
+    github: "https://github.com/dhruv1206",
+    linkedIn: "https://www.linkedin.com/in/dhruvagrawal1206/",
+    twitter: "https://x.com/dhruv_1206",
+    leetcode: "https://leetcode.com/u/TrickyGuy/",
+    devUsername: "dhruv1206",
+    resume: "https://drive.google.com/file/d/1n6uXQ-9NOMCxO2RZi03-F0Sl4x32bREw/view?usp=sharing",
+};

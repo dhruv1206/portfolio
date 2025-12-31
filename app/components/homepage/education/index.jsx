@@ -1,85 +1,74 @@
-// @flow strict
-import Image from "next/image";
+"use client";
 
+import { motion } from "framer-motion";
 import { educations } from "@/utils/data/educations";
-import { BsPersonWorkspace } from "react-icons/bs";
-import AnimationLottie from "../../helper/animation-lottie";
-import GlowCard from "../../helper/glow-card";
-import lottieFile from '/public/lottie/study.json';
+import { FadeIn } from "../../ui/page-transition";
+import { BsCalendar, BsBuilding } from "react-icons/bs";
 
 function Education() {
   return (
-    <div id="education" className="relative z-50 border-t my-12 lg:my-24 border-[#25213b]">
-      <Image
-        src="/section.svg"
-        alt="Hero"
-        width={1572}
-        height={795}
-        className="absolute top-0 -z-10"
-      />
-      <div className="flex justify-center -translate-y-[1px]">
-        <div className="w-3/4">
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-violet-500 to-transparent  w-full" />
-        </div>
+    <section id="education" className="relative py-24 lg:py-32">
+      {/* Background decoration */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-pink-500/5 rounded-full blur-[100px]" />
       </div>
 
-      <div className="flex justify-center my-5 lg:py-8">
-        <div className="flex  items-center">
-          <span className="w-24 h-[2px] bg-[#1a1443]"></span>
-          <span className="bg-[#1a1443] w-fit text-white p-2 px-5 text-xl rounded-md">
-            Educations
+      {/* Section Header */}
+      <FadeIn>
+        <div className="text-center mb-16">
+          <span className="inline-block text-sm font-mono text-violet-400 mb-4">
+            &lt;education&gt;
           </span>
-          <span className="w-24 h-[2px] bg-[#1a1443]"></span>
+          <h2 className="section-heading">Education</h2>
+          <p className="section-subheading mx-auto">
+            My academic journey and qualifications.
+          </p>
         </div>
+      </FadeIn>
+
+      {/* Education cards */}
+      <div className="max-w-2xl mx-auto space-y-6">
+        {educations.map((edu, index) => (
+          <motion.div
+            key={edu.id}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
+            className="glass-card p-6 group"
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              {/* Left - Title & Institution */}
+              <div className="flex-1">
+                <h3 className="text-lg font-display font-semibold text-white group-hover:text-violet-300 transition-colors mb-2">
+                  {edu.title}
+                </h3>
+                <div className="flex items-center gap-2 text-gray-400">
+                  <BsBuilding size={14} />
+                  <span className="text-sm">{edu.institution}</span>
+                </div>
+              </div>
+
+              {/* Right - Duration */}
+              <div className="flex items-center gap-2 text-cyan-400">
+                <BsCalendar size={14} />
+                <span className="text-sm font-mono">{edu.duration}</span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      <div className="py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
-          <div className="flex justify-center items-start">
-            <div className="w-3/4 h-3/4">
-              <AnimationLottie animationPath={lottieFile} />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex flex-col gap-6">
-              {
-                educations.map(education => (
-                  <GlowCard key={education.id} identifier={`education-${education.id}`}>
-                    <div className="p-3 relative text-white">
-                      <Image
-                        src="/blur-23.svg"
-                        alt="Hero"
-                        width={1080}
-                        height={200}
-                        className="absolute bottom-0 opacity-80"
-                      />
-                      <div className="flex justify-center">
-                        <p className="text-xs sm:text-sm text-[#16f2b3]">
-                          {education.duration}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-x-8 px-3 py-5">
-                        <div className="text-violet-500  transition-all duration-300 hover:scale-125">
-                          <BsPersonWorkspace size={36} />
-                        </div>
-                        <div>
-                          <p className="text-base sm:text-xl mb-2 font-medium uppercase">
-                            {education.title}
-                          </p>
-                          <p className="text-sm sm:text-base">{education.institution}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </GlowCard>
-                ))
-              }
-            </div>
-          </div>
+      {/* Section closing tag */}
+      <FadeIn>
+        <div className="text-center mt-16">
+          <span className="text-sm font-mono text-violet-400">
+            &lt;/education&gt;
+          </span>
         </div>
-      </div>
-    </div>
+      </FadeIn>
+    </section>
   );
-};
+}
 
 export default Education;

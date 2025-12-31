@@ -1,187 +1,262 @@
-// @flow strict
+"use client";
 
-import { personalData } from "@/utils/data/personal-data";
-import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import { personalData } from "@/utils/data/personal-data";
+import MagneticButton from "../../ui/magnetic-button";
 import { BsGithub, BsLinkedin } from "react-icons/bs";
-import { FaFacebook, FaTwitterSquare } from "react-icons/fa";
-import { MdDownload } from "react-icons/md";
-import { RiContactsFill } from "react-icons/ri";
 import { SiLeetcode } from "react-icons/si";
+import { FaXTwitter } from "react-icons/fa6";
+import { MdDownload, MdArrowOutward } from "react-icons/md";
+
+// Dynamically import 3D scene to avoid SSR issues
+const Hero3DScene = dynamic(() => import("../../ui/hero-3d-scene"), {
+    ssr: false,
+    loading: () => (
+        <div className="w-full h-full flex items-center justify-center">
+            <div className="w-16 h-16 border-4 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+        </div>
+    ),
+});
+
+const socialLinks = [
+    { icon: BsGithub, href: personalData.github, label: "GitHub" },
+    { icon: BsLinkedin, href: personalData.linkedIn, label: "LinkedIn" },
+    { icon: SiLeetcode, href: personalData.leetcode, label: "LeetCode" },
+    { icon: FaXTwitter, href: personalData.twitter, label: "Twitter" },
+];
 
 function HeroSection() {
-  return (
-    <section className="relative flex flex-col items-center justify-between py-4 lg:py-12">
-      <Image
-        src="/hero.svg"
-        alt="Hero"
-        width={1572}
-        height={795}
-        className="absolute -top-[98px] -z-10"
-      />
+    const [mounted, setMounted] = useState(false);
+    const containerRef = useRef(null);
 
-      <div className="grid grid-cols-1 items-start lg:grid-cols-2 lg:gap-12 gap-y-8">
-        <div className="order-2 lg:order-1 flex flex-col items-start justify-center p-2 pb-20 md:pb-10 lg:pt-10">
-          <h1 className="text-3xl font-bold leading-10 text-white md:font-extrabold lg:text-[2.6rem] lg:leading-[3.5rem]">
-            Hello, <br />
-            This is {' '}
-            <span className=" text-pink-500">{personalData.name}</span>
-            {` , I'm a Professional `}
-            <span className=" text-[#16f2b3]">{personalData.designation}</span>
-            .
-          </h1>
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
-          <div className="my-12 flex items-center gap-5">
-            <Link
-              href={personalData.github}
-              target='_blank'
-              className="transition-all text-pink-500 hover:scale-125 duration-300"
-            >
-              <BsGithub size={30} />
-            </Link>
-            <Link
-              href={personalData.linkedIn}
-              target='_blank'
-              className="transition-all text-pink-500 hover:scale-125 duration-300"
-            >
-              <BsLinkedin size={30} />
-            </Link>
-            <Link
-              href={personalData.facebook}
-              target='_blank'
-              className="transition-all text-pink-500 hover:scale-125 duration-300"
-            >
-              <FaFacebook size={30} />
-            </Link>
-            <Link
-              href={personalData.leetcode}
-              target='_blank'
-              className="transition-all text-pink-500 hover:scale-125 duration-300"
-            >
-              <SiLeetcode size={30} />
-            </Link>
-            <Link
-              href={personalData.twitter}
-              target='_blank'
-              className="transition-all text-pink-500 hover:scale-125 duration-300"
-            >
-              <FaTwitterSquare size={30} />
-            </Link>
-          </div>
+    // Text animation variants
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1,
+                delayChildren: 0.3,
+            },
+        },
+    };
 
-          <div className="flex items-center gap-3">
-            <Link href="#contact" className="bg-gradient-to-r to-pink-500 from-violet-600 p-[1px] rounded-full transition-all duration-300 hover:from-pink-500 hover:to-violet-600">
-              <button className="px-3 text-xs md:px-8 py-3 md:py-4 bg-[#0d1224] rounded-full border-none text-center md:text-sm font-medium uppercase tracking-wider text-[#ffff] no-underline transition-all duration-200 ease-out  md:font-semibold flex items-center gap-1 hover:gap-3">
-                <span>Contact me</span>
-                <RiContactsFill size={16} />
-              </button>
-            </Link>
+    const itemVariants = {
+        hidden: { opacity: 0, y: 30 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: {
+                duration: 0.8,
+                ease: [0.4, 0, 0.2, 1],
+            },
+        },
+    };
 
-            <Link className="flex items-center gap-1 hover:gap-3 rounded-full bg-gradient-to-r from-pink-500 to-violet-600 px-3 md:px-8 py-3 md:py-4 text-center text-xs md:text-sm font-medium uppercase tracking-wider text-white no-underline transition-all duration-200 ease-out hover:text-white hover:no-underline md:font-semibold" role="button" target="_blank" href={personalData.resume}
-            >
-              <span>Get Resume</span>
-              <MdDownload size={16} />
-            </Link>
-          </div>
+    const letterVariants = {
+        hidden: { opacity: 0, y: 50 },
+        visible: (i) => ({
+            opacity: 1,
+            y: 0,
+            transition: {
+                duration: 0.5,
+                delay: i * 0.05,
+                ease: [0.4, 0, 0.2, 1],
+            },
+        }),
+    };
 
-        </div>
-        <div className="order-1 lg:order-2 from-[#0d1224] border-[#1b2c68a0] relative rounded-lg border bg-gradient-to-r to-[#0a0d37]">
-          <div className="flex flex-row">
-            <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-pink-500 to-violet-600"></div>
-            <div className="h-[1px] w-full bg-gradient-to-r from-violet-600 to-transparent"></div>
-          </div>
-          <div className="px-4 lg:px-8 py-5">
-            <div className="flex flex-row space-x-2">
-              <div className="h-3 w-3 rounded-full bg-red-400"></div>
-              <div className="h-3 w-3 rounded-full bg-orange-400"></div>
-              <div className="h-3 w-3 rounded-full bg-green-200"></div>
+    const firstName = "DHRUV";
+    const lastName = "AGRAWAL";
+
+    return (
+        <section
+            ref={containerRef}
+            className="relative min-h-screen flex items-center pt-20 pb-12 overflow-hidden"
+        >
+            {/* Background decorative elements */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-20 left-10 w-72 h-72 bg-violet-500/10 rounded-full blur-[100px]" />
+                <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px]" />
             </div>
-          </div>
-          <div className="overflow-hidden border-t-[2px] border-indigo-900 px-4 lg:px-8 py-4 lg:py-8">
-            <code className="font-mono text-xs md:text-sm lg:text-base">
-              <div className="blink">
-                <span className="mr-2 text-pink-500">const</span>
-                <span className="mr-2 text-white">coder</span>
-                <span className="mr-2 text-pink-500">=</span>
-                <span className="text-gray-400">{'{'}</span>
-              </div>
-              <div>
-                <span className="ml-4 lg:ml-8 mr-2 text-white">name:</span>
-                <span className="text-gray-400">{`'`}</span>
-                <span className="text-amber-300">Abu Said</span>
-                <span className="text-gray-400">{`',`}</span>
-              </div>
-              <div className="ml-4 lg:ml-8 mr-2">
-                <span className=" text-white">skills:</span>
-                <span className="text-gray-400">{`['`}</span>
-                <span className="text-amber-300">React</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">NextJS</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">Redux</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">Express</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">NestJS</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">MySql</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">MongoDB</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">Docker</span>
-                <span className="text-gray-400">{"', '"}</span>
-                <span className="text-amber-300">AWS</span>
-                <span className="text-gray-400">{"'],"}</span>
-              </div>
-              <div>
-                <span className="ml-4 lg:ml-8 mr-2 text-white">hardWorker:</span>
-                <span className="text-orange-400">true</span>
-                <span className="text-gray-400">,</span>
-              </div>
-              <div>
-                <span className="ml-4 lg:ml-8 mr-2 text-white">quickLearner:</span>
-                <span className="text-orange-400">true</span>
-                <span className="text-gray-400">,</span>
-              </div>
-              <div>
-                <span className="ml-4 lg:ml-8 mr-2 text-white">problemSolver:</span>
-                <span className="text-orange-400">true</span>
-                <span className="text-gray-400">,</span>
-              </div>
-              <div>
-                <span className="ml-4 lg:ml-8 mr-2 text-green-400">hireable:</span>
-                <span className="text-orange-400">function</span>
-                <span className="text-gray-400">{'() {'}</span>
-              </div>
-              <div>
-                <span className="ml-8 lg:ml-16 mr-2 text-orange-400">return</span>
-                <span className="text-gray-400">{`(`}</span>
-              </div>
-              <div>
-                <span className="ml-12 lg:ml-24 text-cyan-400">this.</span>
-                <span className="mr-2 text-white">hardWorker</span>
-                <span className="text-amber-300">&amp;&amp;</span>
-              </div>
-              <div>
-                <span className="ml-12 lg:ml-24 text-cyan-400">this.</span>
-                <span className="mr-2 text-white">problemSolver</span>
-                <span className="text-amber-300">&amp;&amp;</span>
-              </div>
-              <div>
-                <span className="ml-12 lg:ml-24 text-cyan-400">this.</span>
-                <span className="mr-2 text-white">skills.length</span>
-                <span className="mr-2 text-amber-300">&gt;=</span>
-                <span className="text-orange-400">5</span>
-              </div>
-              <div><span className="ml-8 lg:ml-16 mr-2 text-gray-400">{`);`}</span></div>
-              <div><span className="ml-4 lg:ml-8 text-gray-400">{`};`}</span></div>
-              <div><span className="text-gray-400">{`};`}</span></div>
-            </code>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
+
+            <div className="relative z-10 w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                {/* Left Content */}
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="order-2 lg:order-1 flex flex-col"
+                >
+                    {/* Greeting */}
+                    <motion.p
+                        variants={itemVariants}
+                        className="text-violet-400 font-mono text-sm md:text-base mb-4"
+                    >
+                        Hello, I&apos;m
+                    </motion.p>
+
+                    {/* Giant Name */}
+                    <div className="mb-2">
+                        <h1 className="font-display font-bold text-display-xl leading-none tracking-tighter">
+                            {firstName.split("").map((letter, i) => (
+                                <motion.span
+                                    key={i}
+                                    custom={i}
+                                    variants={letterVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    className="inline-block gradient-text"
+                                >
+                                    {letter}
+                                </motion.span>
+                            ))}
+                        </h1>
+                    </div>
+
+                    <div className="mb-6">
+                        <h1 className="font-display font-bold text-display-lg leading-none tracking-tighter text-white/90">
+                            {lastName.split("").map((letter, i) => (
+                                <motion.span
+                                    key={i}
+                                    custom={i + firstName.length}
+                                    variants={letterVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    className="inline-block"
+                                >
+                                    {letter}
+                                </motion.span>
+                            ))}
+                        </h1>
+                    </div>
+
+                    {/* Role/Title */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="flex items-center gap-3 mb-6"
+                    >
+                        <span className="w-12 h-[2px] bg-gradient-to-r from-violet-500 to-cyan-500" />
+                        <p className="text-xl md:text-2xl font-display font-medium text-gray-300">
+                            {personalData.designation}
+                        </p>
+                    </motion.div>
+
+                    {/* Description */}
+                    <motion.p
+                        variants={itemVariants}
+                        className="text-gray-400 text-base md:text-lg max-w-lg mb-8 leading-relaxed"
+                    >
+                        Building scalable applications and solving complex problems.
+                        Passionate about full-stack development, cloud technologies,
+                        and creating impactful digital experiences.
+                    </motion.p>
+
+                    {/* CTA Buttons */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="flex flex-wrap items-center gap-4 mb-10"
+                    >
+                        <MagneticButton href="#projects" variant="primary" size="lg">
+                            <span>View My Work</span>
+                            <MdArrowOutward size={18} />
+                        </MagneticButton>
+
+                        <MagneticButton
+                            href={personalData.resume}
+                            variant="secondary"
+                            size="lg"
+                            external
+                        >
+                            <span>Resume</span>
+                            <MdDownload size={18} />
+                        </MagneticButton>
+                    </motion.div>
+
+                    {/* Social Links */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="flex items-center gap-4"
+                    >
+                        {socialLinks.map((social, index) => (
+                            <motion.div
+                                key={social.label}
+                                whileHover={{ scale: 1.1, y: -2 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                <Link
+                                    href={social.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-12 h-12 flex items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-400 hover:text-violet-400 hover:border-violet-500/50 hover:bg-violet-500/10 transition-all duration-300"
+                                    aria-label={social.label}
+                                >
+                                    <social.icon size={20} />
+                                </Link>
+                            </motion.div>
+                        ))}
+                    </motion.div>
+                </motion.div>
+
+                {/* Right Content - 3D Element */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                        duration: 1,
+                        delay: 0.5,
+                        ease: [0.4, 0, 0.2, 1],
+                    }}
+                    className="order-1 lg:order-2 relative h-[350px] md:h-[450px] lg:h-[500px]"
+                >
+                    {mounted && <Hero3DScene />}
+
+                    {/* Floating badge */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.2 }}
+                        className="absolute bottom-4 left-4 glass-card px-4 py-3 flex items-center gap-3"
+                    >
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-sm text-gray-300">
+                            Open to opportunities
+                        </span>
+                    </motion.div>
+                </motion.div>
+            </div>
+
+            {/* Scroll indicator */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2 }}
+                className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+            >
+                <span className="text-xs text-gray-500 uppercase tracking-widest">
+                    Scroll
+                </span>
+                <motion.div
+                    animate={{ y: [0, 8, 0] }}
+                    transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                    className="w-6 h-10 rounded-full border-2 border-gray-700 flex justify-center pt-2"
+                >
+                    <div className="w-1 h-2 bg-violet-500 rounded-full" />
+                </motion.div>
+            </motion.div>
+        </section>
+    );
+}
 
 export default HeroSection;

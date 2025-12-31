@@ -1,51 +1,118 @@
-// @flow strict
-import Link from 'next/link';
-import { FaArrowRight } from 'react-icons/fa';
-import BlogCard from './blog-card';
+"use client";
+
+import { motion } from "framer-motion";
+import Link from "next/link";
+import BlogCard from "./blog-card";
+import { FadeIn } from "../../ui/page-transition";
+import MagneticButton from "../../ui/magnetic-button";
+import { MdArrowOutward } from "react-icons/md";
 
 function Blog({ blogs }) {
+  // If no blogs, show placeholder
+  const hasBlog = blogs && blogs.length > 0;
 
   return (
-    <div id='blogs' className="relative z-50 border-t my-12 lg:my-24 border-[#25213b]">
-      <div className="w-[100px] h-[100px] bg-violet-100 rounded-full absolute top-6 left-[42%] translate-x-1/2 filter blur-3xl  opacity-20"></div>
-
-      <div className="flex justify-center -translate-y-[1px]">
-        <div className="w-3/4">
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-violet-500 to-transparent  w-full" />
-        </div>
+    <section id="blog" className="relative py-24 lg:py-32">
+      {/* Background decoration */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/2 left-1/4 w-80 h-80 bg-pink-500/5 rounded-full blur-[100px]" />
       </div>
 
-      <div className="flex justify-center my-5 lg:py-8">
-        <div className="flex  items-center">
-          <span className="w-24 h-[2px] bg-[#1a1443]"></span>
-          <span className="bg-[#1a1443] w-fit text-white p-2 px-5 text-xl rounded-md">
-            Blogs
+      {/* Section Header */}
+      <FadeIn>
+        <div className="text-center mb-16">
+          <span className="inline-block text-sm font-mono text-violet-400 mb-4">
+            &lt;blog&gt;
           </span>
-          <span className="w-24 h-[2px] bg-[#1a1443]"></span>
+          <h2 className="section-heading">Latest Articles</h2>
+          <p className="section-subheading mx-auto">
+            Thoughts, tutorials, and insights from my journey as a developer.
+          </p>
         </div>
-      </div>
+      </FadeIn>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-5 lg:gap-8 xl:gap-10">
-        {
-          blogs.slice(0, 6).map((blog, i) => (
-            blog?.cover_image &&
-            <BlogCard blog={blog} key={i} />
-          ))
-        }
-      </div>
+      {hasBlog ? (
+        <>
+          {/* Blog Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {blogs.slice(0, 6).map(
+              (blog, index) =>
+                blog?.cover_image && (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <BlogCard blog={blog} />
+                  </motion.div>
+                )
+            )}
+          </div>
 
-      <div className="flex justify-center  mt-5 lg:mt-12">
-        <Link
-          className="flex items-center gap-1 hover:gap-3 rounded-full bg-gradient-to-r from-pink-500 to-violet-600 px-3 md:px-8 py-3 md:py-4 text-center text-xs md:text-sm font-medium uppercase tracking-wider text-white no-underline transition-all duration-200 ease-out hover:text-white hover:no-underline md:font-semibold"
-          role="button"
-          href="/blog"
-        >
-          <span>View More</span>
-          <FaArrowRight size={16} />
-        </Link>
-      </div>
-    </div>
+          {/* View more button */}
+          <FadeIn>
+            <div className="flex justify-center mt-12">
+              <MagneticButton href="/blog" variant="secondary" size="md">
+                <span>View All Articles</span>
+                <MdArrowOutward size={16} />
+              </MagneticButton>
+            </div>
+          </FadeIn>
+        </>
+      ) : (
+        /* Placeholder when no blogs */
+        <FadeIn>
+          <div className="max-w-2xl mx-auto">
+            <div className="glass-card p-8 text-center">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-violet-500/10 flex items-center justify-center">
+                <svg
+                  className="w-8 h-8 text-violet-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-display font-semibold text-white mb-3">
+                Coming Soon
+              </h3>
+              <p className="text-gray-400 mb-6">
+                I&apos;m currently working on some exciting articles about software
+                development, best practices, and my learning journey. Stay tuned!
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {["React", "System Design", "DSA", "Cloud"].map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 text-xs font-medium text-gray-400 bg-white/5 border border-white/10 rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </FadeIn>
+      )}
+
+      {/* Section closing tag */}
+      <FadeIn>
+        <div className="text-center mt-16">
+          <span className="text-sm font-mono text-violet-400">
+            &lt;/blog&gt;
+          </span>
+        </div>
+      </FadeIn>
+    </section>
   );
-};
+}
 
 export default Blog;

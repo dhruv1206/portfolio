@@ -1,41 +1,125 @@
-// @flow strict
-import Link from 'next/link';
-import { CgGitFork } from "react-icons/cg";
-import { IoStar } from "react-icons/io5";
+"use client";
+
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { personalData } from "@/utils/data/personal-data";
+import { BsGithub, BsLinkedin, BsHeart } from "react-icons/bs";
+import { FaXTwitter } from "react-icons/fa6";
+import { SiLeetcode } from "react-icons/si";
+
+const socialLinks = [
+    { icon: BsGithub, href: personalData.github, label: "GitHub" },
+    { icon: BsLinkedin, href: personalData.linkedIn, label: "LinkedIn" },
+    { icon: SiLeetcode, href: personalData.leetcode, label: "LeetCode" },
+    { icon: FaXTwitter, href: personalData.twitter, label: "Twitter" },
+];
+
+const navLinks = [
+    { name: "About", href: "#about" },
+    { name: "Experience", href: "#experience" },
+    { name: "Projects", href: "#projects" },
+    { name: "Contact", href: "#contact" },
+];
 
 function Footer() {
-  return (
-    <div className="relative border-t bg-[#0d1224] border-[#353951] text-white">
-      <div className="mx-auto px-6 sm:px-12 lg:max-w-[70rem] xl:max-w-[76rem] 2xl:max-w-[92rem] py-6 lg:py-10">
-        <div className="flex justify-center -z-40">
-          <div className="absolute top-0 h-[1px] w-1/2  bg-gradient-to-r from-transparent via-violet-500 to-transparent"></div>
-        </div>
-        <div className="flex flex-col md:flex-row items-center justify-between">
-          <p className="text-sm">
-            © Developer Portfolio by <Link target="_blank" href="https://www.linkedin.com/in/abu-said-bd/" className="text-[#16f2b3]">Abu Said</Link>
-          </p>
-          <div className="flex items-center gap-5">
-            <Link
-              target="_blank"
-              href="https://github.com/said7388/developer-portfolio"
-              className="flex items-center gap-2 uppercase hover:text-[#16f2b3]"
-            >
-              <IoStar />
-              <span>Star</span>
-            </Link>
-            <Link
-              target="_blank"
-              href="https://github.com/said7388/developer-portfolio/fork"
-              className="flex items-center gap-2 uppercase hover:text-[#16f2b3]"
-            >
-              <CgGitFork />
-              <span>Fork</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div >
-  );
-};
+    const currentYear = new Date().getFullYear();
+
+    return (
+        <footer className="relative border-t border-white/5 bg-dark-900/50 backdrop-blur-sm">
+            {/* Gradient line */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+
+            <div className="mx-auto px-6 sm:px-12 lg:max-w-[70rem] xl:max-w-[76rem] 2xl:max-w-[92rem] py-12">
+                {/* Top section */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+                    {/* Brand */}
+                    <div>
+                        <Link href="/" className="inline-block mb-4">
+                            <span className="text-2xl font-display font-bold">
+                                <span className="gradient-text">D</span>
+                                <span className="text-white">hruv</span>
+                            </span>
+                        </Link>
+                        <p className="text-sm text-gray-500 max-w-xs">
+                            Building scalable applications and solving complex problems. Open
+                            to exciting opportunities.
+                        </p>
+                    </div>
+
+                    {/* Quick links */}
+                    <div>
+                        <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
+                            Quick Links
+                        </h4>
+                        <ul className="space-y-2">
+                            {navLinks.map((link) => (
+                                <li key={link.name}>
+                                    <Link
+                                        href={link.href}
+                                        className="text-sm text-gray-400 hover:text-violet-400 transition-colors"
+                                    >
+                                        {link.name}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Connect */}
+                    <div>
+                        <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
+                            Connect
+                        </h4>
+                        <div className="flex gap-3">
+                            {socialLinks.map((social) => (
+                                <motion.div key={social.label} whileHover={{ y: -2 }}>
+                                    <Link
+                                        href={social.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-violet-400 hover:border-violet-500/50 transition-all"
+                                        aria-label={social.label}
+                                    >
+                                        <social.icon size={18} />
+                                    </Link>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Divider */}
+                <div className="h-[1px] bg-white/5 mb-6" />
+
+                {/* Bottom section */}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+                    <p>
+                        © {currentYear}{" "}
+                        <Link
+                            href={personalData.linkedIn}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-violet-400 hover:text-violet-300 transition-colors"
+                        >
+                            Dhruv Agrawal
+                        </Link>
+                        . All rights reserved.
+                    </p>
+
+                    <p className="flex items-center gap-1">
+                        Made with{" "}
+                        <motion.span
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                        >
+                            <BsHeart className="text-pink-500" />
+                        </motion.span>{" "}
+                        & Next.js
+                    </p>
+                </div>
+            </div>
+        </footer>
+    );
+}
 
 export default Footer;
