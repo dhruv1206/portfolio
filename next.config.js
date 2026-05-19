@@ -44,11 +44,7 @@ const nextConfig = {
     // Performance optimizations
     experimental: {
         // Optimize package imports
-        optimizePackageImports: [
-            "framer-motion",
-            "react-icons",
-            "@react-three/drei",
-        ],
+        optimizePackageImports: ["framer-motion", "react-icons"],
     },
 
     // Compiler options for production

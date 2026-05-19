@@ -11,8 +11,8 @@ import { SiLeetcode } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
 import { MdDownload, MdArrowOutward } from "react-icons/md";
 
-// Dynamically import 3D scene to avoid SSR issues
-const Hero3DScene = dynamic(() => import("../../ui/hero-3d-scene"), {
+// Dynamically import the system topology to keep it out of the critical path
+const SystemTopology = dynamic(() => import("../../hero/system-topology"), {
     ssr: false,
     loading: () => (
         <div className="w-full h-full flex items-center justify-center">
@@ -138,14 +138,14 @@ function HeroSection() {
                         </h1>
                     </div>
 
-                    {/* Role/Title */}
+                    {/* Tagline */}
                     <motion.div
                         variants={itemVariants}
                         className="flex items-center gap-3 mb-6"
                     >
                         <span className="w-12 h-[2px] bg-gradient-to-r from-violet-500 to-cyan-500" />
                         <p className="text-xl md:text-2xl font-display font-medium text-gray-300">
-                            {personalData.designation}
+                            Engineering, <span className="gradient-text">demonstrated.</span>
                         </p>
                     </motion.div>
 
@@ -154,9 +154,12 @@ function HeroSection() {
                         variants={itemVariants}
                         className="text-gray-400 text-base md:text-lg max-w-lg mb-8 leading-relaxed"
                     >
-                        Building scalable applications and solving complex problems.
-                        Passionate about full-stack development, cloud technologies,
-                        and creating impactful digital experiences.
+                        Backend engineer architecting systems that serve{" "}
+                        <span className="text-violet-300">150k+ MAU</span>, shaving{" "}
+                        <span className="text-violet-300">P99 latency</span> from
+                        seconds to milliseconds, and cutting infra spend by{" "}
+                        <span className="text-violet-300">95%</span>. Every claim on
+                        this page is runnable — try the demos.
                     </motion.p>
 
                     {/* CTA Buttons */}
@@ -216,20 +219,7 @@ function HeroSection() {
                     }}
                     className="order-1 lg:order-2 relative h-[350px] md:h-[450px] lg:h-[500px]"
                 >
-                    {mounted && <Hero3DScene />}
-
-                    {/* Floating badge */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.2 }}
-                        className="absolute bottom-4 left-4 glass-card px-4 py-3 flex items-center gap-3"
-                    >
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                        <span className="text-sm text-gray-300">
-                            Open to opportunities
-                        </span>
-                    </motion.div>
+                    {mounted && <SystemTopology />}
                 </motion.div>
             </div>
 
