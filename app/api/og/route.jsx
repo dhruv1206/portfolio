@@ -109,6 +109,7 @@ export async function GET(request) {
                     >
                         <div
                             style={{
+                                display: "flex",
                                 fontSize: "28px",
                                 fontWeight: "bold",
                             }}

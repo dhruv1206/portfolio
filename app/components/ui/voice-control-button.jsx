@@ -218,7 +218,7 @@ const VoiceControlButton = () => {
                                 {status === "failed" && (
                                     <span className="text-red-400">
                                         &gt; ERROR: INPUT UNRECOGNIZED<br />
-                                        <span className="text-white/50 text-xs">Please adjust parameters or say "Help"</span>
+                                        <span className="text-white/50 text-xs">Please adjust parameters or say &quot;Help&quot;</span>
                                     </span>
                                 )}
 

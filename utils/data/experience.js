@@ -1,9 +1,9 @@
-import benam from "/public/image/experiences/benam.png";
-import allusedcars from "/public/image/experiences/allusedcars.png";
-import myrik from "/public/image/experiences/myrik.png";
-import mitra from "/public/image/experiences/mitra.png";
-import jiohotstar from "/public/image/experiences/jiohotstar.png";
-import carwale from "/public/image/experiences/carwale.png";
+import benam from "@/public/image/experiences/benam.png";
+import allusedcars from "@/public/image/experiences/allusedcars.png";
+import myrik from "@/public/image/experiences/myrik.png";
+import mitra from "@/public/image/experiences/mitra.png";
+import jiohotstar from "@/public/image/experiences/jiohotstar.png";
+import carwale from "@/public/image/experiences/carwale.png";
 
 export const experiences = [
     {

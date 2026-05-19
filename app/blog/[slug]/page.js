@@ -12,10 +12,11 @@ async function getBlog(slug) {
   return data;
 };
 
-async function BlogDetails({params}) {
+async function BlogDetails(props) {
+  const params = await props.params;
   const slug = params.slug;
   const blog = await getBlog(slug);
- 
+
   return (
     <div>
     </div>
