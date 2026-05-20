@@ -63,18 +63,8 @@ function HeroSection() {
         },
     };
 
-    const letterVariants = {
-        hidden: { opacity: 0, y: 50 },
-        visible: (i) => ({
-            opacity: 1,
-            y: 0,
-            transition: {
-                duration: 0.5,
-                delay: i * 0.05,
-                ease: [0.4, 0, 0.2, 1],
-            },
-        }),
-    };
+    // letterVariants used to animate the per-letter h1 spans, which
+    // are now rendered by the WebGPU particle layer instead.
 
     const firstName = "DHRUV";
     const lastName = "AGRAWAL";
@@ -84,17 +74,15 @@ function HeroSection() {
             ref={containerRef}
             className="relative min-h-screen flex items-center pt-20 pb-12 overflow-hidden"
         >
-            {/* WebGPU particle background (z-0). Mouse interactions
-                travel through the canvas only; the inner content layer
-                sits at z-10 with pointer-events restored on its
-                interactive children. */}
-            <div className="absolute inset-0 z-0">
-                {mounted && <ParticleHeroWebGPU />}
-            </div>
+            {/* WebGPU particle layer is `fixed inset-0` and self-mounts
+                at the viewport level. Rendered here (rather than in the
+                root layout) so it lives and unmounts with the hero
+                section — no need to render particles on /blog or
+                /projects/[slug] pages. */}
+            {mounted && <ParticleHeroWebGPU />}
 
-            {/* Background decorative blobs — still useful behind the
-                particle layer to seed colour even before particles spawn
-                or when reduced-motion is enabled. */}
+            {/* Background decorative blobs — useful even when particles
+                are active (subtle ambient colour under the field). */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-violet-500/10 rounded-full blur-[100px]" />
                 <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px]" />
@@ -116,39 +104,42 @@ function HeroSection() {
                         Hello, I&apos;m
                     </motion.p>
 
-                    {/* Giant Name */}
-                    <div className="mb-2">
-                        <h1 className="font-display font-bold text-display-xl leading-none tracking-tighter">
-                            {firstName.split("").map((letter, i) => (
-                                <motion.span
-                                    key={i}
-                                    custom={i}
-                                    variants={letterVariants}
-                                    initial="hidden"
-                                    animate="visible"
-                                    className="inline-block gradient-text"
-                                >
-                                    {letter}
-                                </motion.span>
-                            ))}
-                        </h1>
-                    </div>
+                    {/* Logical name for screen readers + SEO. */}
+                    <h1 className="sr-only">
+                        {firstName} {lastName}
+                    </h1>
 
-                    <div className="mb-6">
-                        <h1 className="font-display font-bold text-display-lg leading-none tracking-tighter text-white/90">
-                            {lastName.split("").map((letter, i) => (
-                                <motion.span
-                                    key={i}
-                                    custom={i + firstName.length}
-                                    variants={letterVariants}
-                                    initial="hidden"
-                                    animate="visible"
-                                    className="inline-block"
-                                >
-                                    {letter}
-                                </motion.span>
-                            ))}
-                        </h1>
+                    {/* Layout-only twins of the original typography. The
+                        WebGPU particle layer reads these elements'
+                        bounding rects to sample text targets, so the
+                        particle "letters" land exactly where the original
+                        text sat. `visibility: hidden` keeps them in flow
+                        (so the rest of the column slots under correctly)
+                        while removing them from the paint pass — the
+                        particle layer does the visible rendering. */}
+                    <div
+                        aria-hidden="true"
+                        className="mb-2"
+                        style={{ visibility: "hidden" }}
+                    >
+                        <div
+                            id="hero-name-line-0"
+                            className="font-display font-bold text-display-xl leading-none tracking-tighter"
+                        >
+                            {firstName}
+                        </div>
+                    </div>
+                    <div
+                        aria-hidden="true"
+                        className="mb-6"
+                        style={{ visibility: "hidden" }}
+                    >
+                        <div
+                            id="hero-name-line-1"
+                            className="font-display font-bold text-display-lg leading-none tracking-tighter"
+                        >
+                            {lastName}
+                        </div>
                     </div>
 
                     {/* Tagline */}

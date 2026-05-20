@@ -35,37 +35,94 @@ let mouseX = -10000;
 let mouseY = -10000;
 let mouseRadius = 0;
 
-// Simulation tuning. Quiet starfield: particles drift almost
-// independently, with just enough flow to keep them alive. Hero text
-// + SystemTopology stay the focus.
+// Simulation tuning. Letters formed by per-particle spring (set in
+// particle buffer, not here). Damping kept lowish so the nebula
+// collapse has visible swirling motion before settling, and curl-noise
+// flowStrength is high enough to deflect particles off straight paths
+// (so no two particles trace the same trajectory into the letters).
 const config = {
-    mouseForce: 220000,
-    springK: 0,         // 0 = ambient flow (text-formation reserved for later)
-    damping: 0.97,      // higher = slower / longer settling
-    particleSize: 1.3,  // half-extent in device px
-    flowStrength: 3.2,  // very gentle drift — bigger values cluster particles into visible curl bands
+    mouseForce: 320000,
+    springK: 0,         // unused — per-particle spring lives in the buffer
+    damping: 0.93,
+    particleSize: 1.0,  // half-extent in device px
+    flowStrength: 5.0,
 };
 
 function postError(message) {
     self.postMessage({ type: "error", error: message });
 }
 
-function makeParticleBuffer(goals) {
+function makeParticleBuffer(goals, tints, springs) {
     const f32 = new Float32Array((particleCount * PARTICLE_BYTES) / 4);
+
+    // "Nebula collapse" formation. Three things break the geometric-
+    // contraction look:
+    //
+    // 1. Each particle spawns in a wide elliptical halo around its OWN
+    //    goal letter — not at canvas edges, not in a uniform field.
+    //    Each letter has its own swirling cloud that collapses inward,
+    //    so there's no global rectangle ever visible.
+    //
+    // 2. Initial velocity is TANGENTIAL to the radius (orbital, with
+    //    noise), not aimed at the goal. Particles spiral inward rather
+    //    than zooming straight in — non-radial paths overlap and
+    //    weave organically.
+    //
+    // 3. Per-particle spring constant is randomised inside a wide band
+    //    (~×0.4 to ~×1.6 of the base k) so different particles
+    //    converge at very different rates. The formation has a long
+    //    tail of "stragglers" still arriving while the bulk has
+    //    already settled — feels organic, not snap-to.
+    const HALO_INNER = 30;     // min px from goal at spawn
+    const HALO_OUTER = 520;    // max px from goal
+    const ORBITAL_NOISE = 1.1; // ± radians around the pure tangent
+    const SPEED_MIN = 180;
+    const SPEED_VARIANCE = 540;
+    const K_FACTOR_LOW = 0.4;
+    const K_FACTOR_HIGH = 1.6;
+
     for (let i = 0; i < particleCount; i++) {
         const base = i * 8;
-        // `goal` (was named "target" before, but that's a WGSL reserved
-        // keyword — see particles.wgsl).
         const gx = goals ? goals[i * 2] : width / 2;
         const gy = goals ? goals[i * 2 + 1] : height / 2;
-        f32[base + 0] = Math.random() * width;
-        f32[base + 1] = Math.random() * height;
-        f32[base + 2] = (Math.random() - 0.5) * 40;
-        f32[base + 3] = (Math.random() - 0.5) * 40;
+        const tint = tints ? tints[i] : 1.0;
+        const baseK = springs ? springs[i] : 7.0;
+
+        // Halo position: random angle, biased-toward-outer radial
+        // distance so the cloud is wide. sqrt() flattens the inner
+        // density so halo doesn't pile up at the goal.
+        const r =
+            HALO_INNER +
+            Math.sqrt(Math.random()) * (HALO_OUTER - HALO_INNER);
+        const a = Math.random() * Math.PI * 2;
+        const px = gx + Math.cos(a) * r;
+        const py = gy + Math.sin(a) * r;
+
+        // Tangential velocity (perpendicular to radius), with angular
+        // noise so it isn't a perfect ring. Half spin clockwise, half
+        // counter-clockwise.
+        const tangent = a + Math.PI / 2 + (Math.random() - 0.5) * ORBITAL_NOISE;
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        const speed = SPEED_MIN + Math.random() * SPEED_VARIANCE;
+        const vx = Math.cos(tangent) * speed * dir;
+        const vy = Math.sin(tangent) * speed * dir;
+
+        // Per-particle k variation → staggered convergence.
+        const k =
+            baseK > 0
+                ? baseK *
+                  (K_FACTOR_LOW +
+                      Math.random() * (K_FACTOR_HIGH - K_FACTOR_LOW))
+                : 0;
+
+        f32[base + 0] = px;
+        f32[base + 1] = py;
+        f32[base + 2] = vx;
+        f32[base + 3] = vy;
         f32[base + 4] = gx;
         f32[base + 5] = gy;
-        f32[base + 6] = 0;
-        f32[base + 7] = 0;
+        f32[base + 6] = tint;
+        f32[base + 7] = k;
     }
     return f32;
 }
@@ -146,6 +203,8 @@ async function init({
     height: h,
     shaderCode,
     targets, // legacy name retained for the postMessage API
+    tints,   // parallel Float32Array, length = particleCount
+    springs, // parallel Float32Array, length = particleCount
 }) {
     canvas = offscreen;
     particleCount = count;
@@ -197,7 +256,7 @@ async function init({
             GPUBufferUsage.VERTEX |
             GPUBufferUsage.COPY_DST,
     });
-    const initial = makeParticleBuffer(targets);
+    const initial = makeParticleBuffer(targets, tints, springs);
     device.queue.writeBuffer(particleBuffer, 0, initial.buffer);
 
     simBuffer = device.createBuffer({
@@ -237,6 +296,7 @@ async function init({
                     attributes: [
                         { shaderLocation: 0, offset: 0, format: "float32x2" }, // pos
                         { shaderLocation: 1, offset: 8, format: "float32x2" }, // vel
+                        { shaderLocation: 2, offset: 24, format: "float32" },  // tint
                     ],
                 },
             ],

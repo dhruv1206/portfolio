@@ -6,11 +6,11 @@
 //     (Render stages can't bind writable storage in WebGPU.)
 //
 // Per particle (32-byte stride):
-//   pos: vec2<f32>      (px, y down)
-//   vel: vec2<f32>      (px/sec)
-//   goal: vec2<f32>     (px; rest position; springK=0 disables)
-//   age: f32            (sec)
-//   _pad: f32           (alignment)
+//   pos:   vec2<f32>   (px, y down)
+//   vel:   vec2<f32>   (px/sec)
+//   goal:  vec2<f32>   (px; rest position; springK=0 disables)
+//   tint:  f32         (0..1 = DHRUV gradient, 2.0 = AGRAWAL white)
+//   _pad:  f32         (alignment)
 //
 // Field is `goal` not `target` — `target` is a WGSL reserved keyword
 // (rejected by Dawn / Chrome's WGSL compiler).
@@ -19,8 +19,8 @@ struct Particle {
     pos: vec2<f32>,
     vel: vec2<f32>,
     goal: vec2<f32>,
-    age: f32,
-    _pad: f32,
+    tint: f32,
+    spring: f32,   // per-particle k; 0 → ambient (no goal influence)
 }
 
 struct Sim {
@@ -77,9 +77,10 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     var force = vec2<f32>(0.0, 0.0);
 
-    // Spring toward rest position.
-    if (sim.springK > 0.0) {
-        force = force + (p.goal - p.pos) * sim.springK;
+    // Spring toward rest position. Per-particle: anchored particles
+    // have spring > 0, ambient particles have spring == 0.
+    if (p.spring > 0.0) {
+        force = force + (p.goal - p.pos) * p.spring;
     }
 
     // Curl-noise flow.
@@ -101,7 +102,6 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
     // Semi-implicit Euler + damping.
     p.vel = (p.vel + force * sim.dt) * sim.damping;
     p.pos = p.pos + p.vel * sim.dt;
-    p.age = p.age + sim.dt;
 
     // Soft-wrap so particles re-enter on the opposite side.
     if (p.pos.x < -50.0) { p.pos.x = sim.resolution.x + 50.0; }
@@ -129,6 +129,7 @@ struct RenderUniforms {
 struct VSIn {
     @location(0) pos: vec2<f32>,
     @location(1) vel: vec2<f32>,
+    @location(2) tint: f32,
 }
 
 struct VSOut {
@@ -157,15 +158,24 @@ fn vs_main(@builtin(vertex_index) vi: u32, in: VSIn) -> VSOut {
     out.position = vec4<f32>(ndc.x, -ndc.y, 0.0, 1.0);
     out.uv = local;
 
-    // Violet -> cyan ramp on speed. No brightness multiplier — the
-    // pipeline uses alpha blending now, not additive, so each particle
-    // contributes once instead of stacking.
-    let speed = length(in.vel);
-    let intensity = clamp(speed / 180.0, 0.0, 1.0);
+    // Colour from per-particle `tint`:
+    //   tint in [0, 1] → DHRUV gradient (violet → cyan)
+    //   tint == 2.0    → AGRAWAL near-white
+    // Speed-based brightness boost pops dispersing particles briefly.
     let violet = vec3<f32>(0.545, 0.361, 0.965); // #8b5cf6
     let cyan   = vec3<f32>(0.024, 0.714, 0.831); // #06b6d4
-    let rgb = mix(violet, cyan, intensity);
-    out.color = vec4<f32>(rgb, 0.40);
+    let white  = vec3<f32>(0.96,  0.96,  0.98);
+
+    let t = clamp(in.tint, 0.0, 1.0);
+    let dhruv = mix(violet, cyan, t);
+    var base = dhruv;
+    if (in.tint > 1.5) {
+        base = white;
+    }
+    let speed = length(in.vel);
+    let pulse = clamp(speed / 320.0, 0.0, 0.4);
+    let rgb = base + vec3<f32>(pulse);
+    out.color = vec4<f32>(rgb, 0.78);
     return out;
 }
 
