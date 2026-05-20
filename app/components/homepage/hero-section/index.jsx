@@ -22,6 +22,12 @@ const SystemTopology = dynamic(() => import("../../hero/system-topology"), {
     ),
 });
 
+// WebGPU particle background — runs on a worker, only loaded client-side.
+const ParticleHeroWebGPU = dynamic(
+    () => import("../../hero/particle-hero-webgpu"),
+    { ssr: false },
+);
+
 const socialLinks = [
     { icon: BsGithub, href: personalData.github, label: "GitHub" },
     { icon: BsLinkedin, href: personalData.linkedIn, label: "LinkedIn" },
@@ -78,8 +84,18 @@ function HeroSection() {
             ref={containerRef}
             className="relative min-h-screen flex items-center pt-20 pb-12 overflow-hidden"
         >
-            {/* Background decorative elements */}
-            <div className="absolute inset-0 pointer-events-none">
+            {/* WebGPU particle background (z-0). Mouse interactions
+                travel through the canvas only; the inner content layer
+                sits at z-10 with pointer-events restored on its
+                interactive children. */}
+            <div className="absolute inset-0 z-0">
+                {mounted && <ParticleHeroWebGPU />}
+            </div>
+
+            {/* Background decorative blobs — still useful behind the
+                particle layer to seed colour even before particles spawn
+                or when reduced-motion is enabled. */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-violet-500/10 rounded-full blur-[100px]" />
                 <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px]" />
             </div>

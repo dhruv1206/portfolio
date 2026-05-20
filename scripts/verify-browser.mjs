@@ -170,7 +170,40 @@ async function main() {
         motionPaths === 0,
         `count=${motionPaths}`,
     );
+    const reducedRenderer = await page
+        .locator("[data-renderer]")
+        .first()
+        .getAttribute("data-renderer");
+    check(
+        "C5: particle hero falls back to 'static' under reduced-motion",
+        reducedRenderer === "static",
+        `data-renderer=${reducedRenderer}`,
+    );
     await page.screenshot({ path: `${OUT}/03-reduced-motion.png`, fullPage: false });
+
+    // -------------------------------------------------------------- P1.5 (particle hero)
+    console.log("\n→ Particle hero renderer selection");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto(BASE + "/", { waitUntil: "networkidle" });
+    await page.waitForTimeout(2500); // wait for worker init + shader fetch
+    const particleContainer = await page.locator("[data-renderer]").first();
+    const particleExists = (await particleContainer.count()) > 0;
+    check("P1.5: particle hero container mounted", particleExists);
+    const chosenRenderer = particleExists
+        ? await particleContainer.getAttribute("data-renderer")
+        : null;
+    check(
+        "P1.5: particle hero picked a renderer (webgpu | canvas2d | static)",
+        ["webgpu", "canvas2d", "static"].includes(chosenRenderer),
+        `data-renderer=${chosenRenderer}`,
+    );
+    await page.screenshot({ path: `${OUT}/04-particles.png`, fullPage: false });
+    const particleErrors = consoleErrors.filter((e) => /particles|webgpu/i.test(e));
+    check(
+        "P1.5: no particle-specific console errors",
+        particleErrors.length === 0,
+        particleErrors[0] || "",
+    );
 
     // -------------------------------------------------------------- Summary
     console.log("\n--- Summary ---");
