@@ -26,7 +26,7 @@ const MOUSE_RADIUS = 100; // pixels (CSS), scaled by DPR before posting
  *   2.0     = AGRAWAL white
  *   < 0     = ambient (no goal, gradient violet/cyan by random hue)
  */
-async function sampleAnchorTargets(canvasW, canvasH, dpr) {
+async function sampleAnchorTargets(canvasW, dpr) {
   if (
     typeof document === "undefined" ||
     typeof OffscreenCanvas === "undefined"
@@ -45,59 +45,55 @@ async function sampleAnchorTargets(canvasW, canvasH, dpr) {
   ];
   if (!els[0] || !els[1]) return null;
 
-  const lines = els.map((el, idx) => {
+  // Goals are stored in DOCUMENT coordinates (viewport + current scroll)
+  // so they remain stable across scroll. The worker subtracts the
+  // current `scrollOffset` uniform each frame to translate them into
+  // viewport space before applying spring force.
+  //
+  // Sampling rasterises each h1 in its OWN h1-sized OffscreenCanvas
+  // (text drawn at the local origin), then translates each lit pixel
+  // into the document frame using the h1's document-y. That means the
+  // sampler works at any page scroll position — including `/#projects`
+  // where the h1 twins are above the viewport at mount time.
+  const scrollOffX = window.scrollX || 0;
+  const scrollOffY = window.scrollY || 0;
+  const stride = Math.max(2, Math.floor(canvasW / 1400));
+  const pixels = []; // [docX, docY, lineIdx, gradT]
+
+  for (let idx = 0; idx < els.length; idx++) {
+    const el = els[idx];
     const rect = el.getBoundingClientRect();
     const style = window.getComputedStyle(el);
-    return {
-      text: el.textContent.trim(),
-      lineIdx: idx,
-      x: rect.left * dpr,
-      y: rect.top * dpr,
-      w: rect.width * dpr,
-      h: rect.height * dpr,
-      fontPx: parseFloat(style.fontSize) * dpr,
-      fontFamily: style.fontFamily,
-      fontWeight: style.fontWeight || "700",
-    };
-  });
+    const text = el.textContent.trim();
+    const fontPx = parseFloat(style.fontSize) * dpr;
+    const fontFamily = style.fontFamily;
+    const fontWeight = style.fontWeight || "700";
+    const docLeftPx = (rect.left + scrollOffX) * dpr;
+    const docTopPx = (rect.top + scrollOffY) * dpr;
+    const lineW = Math.max(1, Math.ceil(rect.width * dpr));
+    const lineH = Math.max(1, Math.ceil(rect.height * dpr));
 
-  const sampler = new OffscreenCanvas(canvasW, canvasH);
-  const ctx = sampler.getContext("2d");
-  if (!ctx) return null;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#ffffff";
+    const lineCanvas = new OffscreenCanvas(lineW, lineH);
+    const ctx = lineCanvas.getContext("2d");
+    if (!ctx) continue;
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `${fontWeight} ${fontPx}px ${fontFamily}`;
+    // Measured letter width so the gradient runs the visible glyph
+    // width, not the (often wider) wrapper box.
+    const glyphW = Math.max(1, ctx.measureText(text).width);
+    ctx.fillText(text, 0, fontPx * 0.82);
 
-  for (const line of lines) {
-    ctx.font = `${line.fontWeight} ${line.fontPx}px ${line.fontFamily}`;
-    const baselineY = line.y + line.fontPx * 0.82;
-    // Use the actual measured letter width so the gradient runs the
-    // full visual width of the word, not the wrapper's box width.
-    const measured = ctx.measureText(line.text).width;
-    line.glyphW = measured;
-    ctx.fillText(line.text, line.x, baselineY);
-  }
-
-  const data = ctx.getImageData(0, 0, canvasW, canvasH).data;
-  const stride = Math.max(2, Math.floor(canvasW / 1400));
-  const pixels = []; // [x, y, lineIdx, gradT]
-  for (let py = 0; py < canvasH; py += stride) {
-    for (let px = 0; px < canvasW; px += stride) {
-      if (data[(py * canvasW + px) * 4 + 3] <= 128) continue;
-      let owner = null;
-      for (const line of lines) {
-        if (py >= line.y - 2 && py <= line.y + line.h + 2) {
-          owner = line;
-          break;
-        }
+    const data = ctx.getImageData(0, 0, lineW, lineH).data;
+    for (let py = 0; py < lineH; py += stride) {
+      for (let px = 0; px < lineW; px += stride) {
+        if (data[(py * lineW + px) * 4 + 3] <= 128) continue;
+        const gradT = Math.max(0, Math.min(1, px / glyphW));
+        pixels.push(docLeftPx + px, docTopPx + py, idx, gradT);
       }
-      if (!owner) continue;
-      const gradT = Math.max(
-        0,
-        Math.min(1, (px - owner.x) / (owner.glyphW || owner.w)),
-      );
-      pixels.push(px, py, owner.lineIdx, gradT);
     }
   }
+
   return pixels.length > 0 ? pixels : null;
 }
 
@@ -165,7 +161,6 @@ export default function ParticleHeroWebGPU() {
   const reduced = usePrefersReducedMotion();
 
   const containerRef = useRef(null);
-  const canvasRef = useRef(null);
   const workerRef = useRef(null);
   const rafRef = useRef(null);
   const cleanupRef = useRef(() => {});
@@ -185,8 +180,25 @@ export default function ParticleHeroWebGPU() {
     }
 
     let disposed = false;
-    const canvas = canvasRef.current;
-    if (!container || !canvas) return undefined;
+    if (!container) return undefined;
+    // Defensive sweep: if View Transitions / React kept this container
+    // alive across navigation, any canvas left behind by a previous
+    // mount must go before we append our own. Otherwise canvases
+    // accumulate one per nav cycle.
+    container.querySelectorAll("canvas").forEach((stale) => stale.remove());
+
+    // Create a fresh canvas element imperatively. We can't use a JSX
+    // `<canvas ref>` here because `transferControlToOffscreen()` is a
+    // ONE-TIME operation per HTMLCanvasElement — and during client-
+    // side route transitions (e.g. `/` → `/projects/...` → `/`), the
+    // View Transitions API can keep the old canvas DOM node alive
+    // long enough that React's reconciler matches it on remount,
+    // leaving us with an already-transferred canvas. Creating it via
+    // `document.createElement` here guarantees a virgin canvas every
+    // time the hero mounts.
+    const canvas = document.createElement("canvas");
+    canvas.className = "absolute inset-0 pointer-events-none";
+    container.appendChild(canvas);
 
     // Full-viewport sizing — wrapper is `fixed inset-0`.
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -209,7 +221,7 @@ export default function ParticleHeroWebGPU() {
         const shaderCode = await response.text();
         if (disposed) return false;
 
-        const pixels = await sampleAnchorTargets(width, height, dpr);
+        const pixels = await sampleAnchorTargets(width, dpr);
         const plan = buildParticlePlan(pixels);
         console.log("[particles] sample =", {
           pixels: pixels ? pixels.length / 4 : 0,
@@ -237,6 +249,13 @@ export default function ParticleHeroWebGPU() {
         if (plan.tints) transfers.push(plan.tints.buffer);
         if (plan.springs) transfers.push(plan.springs.buffer);
 
+        // Initial scroll in device pixels — the worker uses it to
+        // project goals into the current viewport for the spawn halo
+        // (page may have loaded at e.g. `/#projects`, so scrollY > 0
+        // at mount).
+        const initScrollXdpr = (window.scrollX || 0) * dpr;
+        const initScrollYdpr = (window.scrollY || 0) * dpr;
+
         worker.postMessage(
           {
             type: "init",
@@ -248,6 +267,8 @@ export default function ParticleHeroWebGPU() {
             targets: plan.targets,
             tints: plan.tints,
             springs: plan.springs,
+            initialScrollX: initScrollXdpr,
+            initialScrollY: initScrollYdpr,
           },
           transfers,
         );
@@ -282,10 +303,18 @@ export default function ParticleHeroWebGPU() {
           });
         };
 
-        // Hide the layer once the hero is mostly off-screen.
+        // Hide the layer once the hero is mostly off-screen AND keep
+        // the worker's scroll offset in sync so anchored particles
+        // track the (hidden) h1 twins as the page scrolls.
         const handleScroll = () => {
-          const fade = 1 - Math.min(window.scrollY / window.innerHeight, 1);
+          const sy = window.scrollY || 0;
+          const fade = 1 - Math.min(sy / window.innerHeight, 1);
           container.style.opacity = String(fade);
+          worker.postMessage({
+            type: "scroll",
+            x: (window.scrollX || 0) * dpr,
+            y: sy * dpr,
+          });
         };
         handleScroll();
 
@@ -306,6 +335,9 @@ export default function ParticleHeroWebGPU() {
           worker.postMessage({ type: "dispose" });
           worker.terminate();
           workerRef.current = null;
+          // Remove the (now transferred / inert) canvas so a quick
+          // remount can't accidentally adopt it via the DOM.
+          canvas.remove();
         };
 
         return true;
@@ -321,15 +353,20 @@ export default function ParticleHeroWebGPU() {
 
     // ---------- Canvas2D ambient fallback (no text formation) ----------
     function runCanvas2D() {
-      const fallback =
-        canvasRef.current?.isConnected &&
-        !canvasRef.current.transferControlToOffscreen
-          ? document.createElement("canvas")
-          : canvas;
+      // If WebGPU already transferred the canvas to a worker, it's no
+      // longer usable on the main thread (`transferControlToOffscreen`
+      // makes the source canvas inert). Use a fresh canvas in that
+      // case; otherwise the (untouched) one we created is fine.
+      const alreadyTransferred =
+        typeof canvas.transferControlToOffscreen !== "function";
+      const fallback = alreadyTransferred
+        ? document.createElement("canvas")
+        : canvas;
       if (fallback !== canvas) {
         fallback.className = canvas.className;
         fallback.style.width = cssWidth + "px";
         fallback.style.height = cssHeight + "px";
+        canvas.remove();
         container.appendChild(fallback);
       }
       fallback.width = width;
@@ -428,7 +465,7 @@ export default function ParticleHeroWebGPU() {
         window.removeEventListener("scroll", handleScroll);
         if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
-        if (fallback !== canvas) fallback.remove();
+        fallback.remove();
       };
     }
 
@@ -444,6 +481,12 @@ export default function ParticleHeroWebGPU() {
       disposed = true;
       cleanupRef.current?.();
       cleanupRef.current = () => {};
+      // Tear down the canvas synchronously here too — `tryWebGPU` is
+      // async, so if the user navigates away before `cleanupRef` is
+      // assigned (mid-init), the per-renderer cleanup never runs.
+      // Always removing the canvas at the React-cleanup level
+      // guarantees no leftover DOM nodes.
+      canvas.remove();
     };
   }, [mounted, isChecking, hasWebGPU, hasWebGL2, reduced]);
 
@@ -453,16 +496,13 @@ export default function ParticleHeroWebGPU() {
       aria-hidden="true"
       // `fixed inset-0` — particle canvas spans the entire viewport
       // so particles drift through corners and mouse repulsion
-      // reaches the screen edges. Opacity is driven by scroll so
-      // the layer hides once the hero is mostly out of view.
+      // reaches the screen edges. Opacity is driven by scroll so the
+      // layer hides once the hero is mostly out of view. The canvas
+      // itself is appended imperatively inside the effect (see comment
+      // there) — never via JSX.
       className="fixed inset-0 overflow-hidden pointer-events-none z-0"
       data-renderer="init"
       style={{ opacity: 1, transition: "opacity 80ms linear" }}
-    >
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 pointer-events-auto"
-      />
-    </div>
+    />
   );
 }

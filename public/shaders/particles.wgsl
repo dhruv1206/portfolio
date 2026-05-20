@@ -6,11 +6,16 @@
 //     (Render stages can't bind writable storage in WebGPU.)
 //
 // Per particle (32-byte stride):
-//   pos:   vec2<f32>   (px, y down)
+//   pos:   vec2<f32>   (px, viewport coords)
 //   vel:   vec2<f32>   (px/sec)
-//   goal:  vec2<f32>   (px; rest position; springK=0 disables)
+//   goal:  vec2<f32>   (px, DOCUMENT coords — viewport-translated by sim.scrollOffset)
 //   tint:  f32         (0..1 = DHRUV gradient, 2.0 = AGRAWAL white)
 //   _pad:  f32         (alignment)
+//
+// `goal` is stored in document coordinates so the formation tracks the
+// hero h1 twins as the user scrolls. Each frame the compute pass
+// subtracts `sim.scrollOffset` to translate the goal into the current
+// viewport, then applies the spring force.
 //
 // Field is `goal` not `target` — `target` is a WGSL reserved keyword
 // (rejected by Dawn / Chrome's WGSL compiler).
@@ -24,16 +29,17 @@ struct Particle {
 }
 
 struct Sim {
-    mouse: vec2<f32>,       // pixels; off-screen value disables
-    resolution: vec2<f32>,  // canvas size in pixels
-    dt: f32,                // seconds since last frame (capped)
-    time: f32,              // seconds since worker init
-    mouseRadius: f32,       // pixels; 0 disables
-    mouseForce: f32,        // peak px/s^2 inside the radius
-    springK: f32,           // toward-target spring constant
-    damping: f32,           // per-frame velocity multiplier
-    particleSize: f32,      // half-extent of the rendered quad
-    flowStrength: f32,      // curl-noise multiplier
+    mouse: vec2<f32>,        // pixels; off-screen value disables
+    resolution: vec2<f32>,   // canvas size in pixels
+    dt: f32,                 // seconds since last frame (capped)
+    time: f32,               // seconds since worker init
+    mouseRadius: f32,        // pixels; 0 disables
+    mouseForce: f32,         // peak px/s^2 inside the radius
+    springK: f32,            // toward-target spring constant
+    damping: f32,            // per-frame velocity multiplier
+    particleSize: f32,       // half-extent of the rendered quad
+    flowStrength: f32,       // curl-noise multiplier
+    scrollOffset: vec2<f32>, // doc → viewport translation for goal (px)
 }
 
 @group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
@@ -79,8 +85,25 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     // Spring toward rest position. Per-particle: anchored particles
     // have spring > 0, ambient particles have spring == 0.
+    //
+    // `goal` is in DOCUMENT coordinates so it remains stable as the
+    // user scrolls; subtract `scrollOffset` to get the current
+    // VIEWPORT position of the goal letter. When the hero scrolls
+    // off-screen the effective goal sits outside the canvas; in that
+    // case we disable the spring so anchored particles drift on
+    // curl-noise only instead of soft-wrap-thrashing toward an
+    // unreachable target. The spring re-engages once the user
+    // scrolls back and the goal returns into the canvas.
     if (p.spring > 0.0) {
-        force = force + (p.goal - p.pos) * p.spring;
+        let effective_goal = p.goal - sim.scrollOffset;
+        let in_canvas =
+            effective_goal.x > -50.0 &&
+            effective_goal.x < sim.resolution.x + 50.0 &&
+            effective_goal.y > -50.0 &&
+            effective_goal.y < sim.resolution.y + 50.0;
+        if (in_canvas) {
+            force = force + (effective_goal - p.pos) * p.spring;
+        }
     }
 
     // Curl-noise flow.

@@ -3,7 +3,11 @@
 // `resize`, `dispose`; the worker only posts `ready` / `error` back.
 
 const PARTICLE_BYTES = 32; // 8 × f32 — see Particle struct in particles.wgsl
-const SIM_BYTES = 48;      // 12 × f32 (16-byte aligned padding included)
+// 14 × f32 of payload (12 scalars + scrollOffset vec2). Padded to 64
+// so the buffer size is a 16-byte multiple — some WebGPU drivers
+// reject non-16-aligned uniform buffer sizes even if the WGSL struct
+// itself only needs 8-byte alignment.
+const SIM_BYTES = 64;
 const RENDER_UNIFORM_BYTES = 16; // vec2 + f32 + f32
 
 let device = null;
@@ -35,6 +39,12 @@ let mouseX = -10000;
 let mouseY = -10000;
 let mouseRadius = 0;
 
+// Scroll offset (device pixels). Goals stored in document coords; the
+// shader subtracts this each frame to translate goals into the current
+// viewport. Updated from the main thread via `{type: 'scroll'}`.
+let scrollX = 0;
+let scrollY = 0;
+
 // Simulation tuning. Letters formed by per-particle spring (set in
 // particle buffer, not here). Damping kept lowish so the nebula
 // collapse has visible swirling motion before settling, and curl-noise
@@ -52,7 +62,7 @@ function postError(message) {
     self.postMessage({ type: "error", error: message });
 }
 
-function makeParticleBuffer(goals, tints, springs) {
+function makeParticleBuffer(goals, tints, springs, initScrollX, initScrollY) {
     const f32 = new Float32Array((particleCount * PARTICLE_BYTES) / 4);
 
     // "Nebula collapse" formation. Three things break the geometric-
@@ -88,6 +98,17 @@ function makeParticleBuffer(goals, tints, springs) {
         const tint = tints ? tints[i] : 1.0;
         const baseK = springs ? springs[i] : 7.0;
 
+        // Spawn center: the goal projected into the CURRENT viewport
+        // (= goal − scroll-at-init). Clamped into the canvas so a
+        // hash-load (e.g. `/#projects`, where the hero is scrolled
+        // off-screen at mount) doesn't spawn the entire halo off-
+        // canvas — that would soft-wrap chaotically before the user
+        // scrolls back.
+        const effGx = gx - initScrollX;
+        const effGy = gy - initScrollY;
+        const spawnX = Math.max(0, Math.min(width, effGx));
+        const spawnY = Math.max(0, Math.min(height, effGy));
+
         // Halo position: random angle, biased-toward-outer radial
         // distance so the cloud is wide. sqrt() flattens the inner
         // density so halo doesn't pile up at the goal.
@@ -95,8 +116,8 @@ function makeParticleBuffer(goals, tints, springs) {
             HALO_INNER +
             Math.sqrt(Math.random()) * (HALO_OUTER - HALO_INNER);
         const a = Math.random() * Math.PI * 2;
-        const px = gx + Math.cos(a) * r;
-        const py = gy + Math.sin(a) * r;
+        const px = spawnX + Math.cos(a) * r;
+        const py = spawnY + Math.sin(a) * r;
 
         // Tangential velocity (perpendicular to radius), with angular
         // noise so it isn't a perfect ring. Half spin clockwise, half
@@ -146,6 +167,9 @@ function writeSimUniforms() {
     sim[9] = config.damping;
     sim[10] = config.particleSize;
     sim[11] = config.flowStrength;
+    sim[12] = scrollX;
+    sim[13] = scrollY;
+    // sim[14], sim[15] are zero-padding so the upload is 16-byte aligned.
     device.queue.writeBuffer(simBuffer, 0, sim.buffer, 0, SIM_BYTES);
 }
 
@@ -205,6 +229,8 @@ async function init({
     targets, // legacy name retained for the postMessage API
     tints,   // parallel Float32Array, length = particleCount
     springs, // parallel Float32Array, length = particleCount
+    initialScrollX = 0, // device pixels at mount time (for spawn projection)
+    initialScrollY = 0,
 }) {
     canvas = offscreen;
     particleCount = count;
@@ -212,6 +238,8 @@ async function init({
     height = h;
     canvas.width = w;
     canvas.height = h;
+    scrollX = initialScrollX;
+    scrollY = initialScrollY;
 
     if (!self.navigator?.gpu) {
         postError("WebGPU unavailable in worker context");
@@ -256,7 +284,13 @@ async function init({
             GPUBufferUsage.VERTEX |
             GPUBufferUsage.COPY_DST,
     });
-    const initial = makeParticleBuffer(targets, tints, springs);
+    const initial = makeParticleBuffer(
+        targets,
+        tints,
+        springs,
+        scrollX,
+        scrollY,
+    );
     device.queue.writeBuffer(particleBuffer, 0, initial.buffer);
 
     simBuffer = device.createBuffer({
@@ -367,6 +401,9 @@ self.onmessage = (event) => {
             canvas.width = width;
             canvas.height = height;
         }
+    } else if (type === "scroll") {
+        scrollX = event.data.x || 0;
+        scrollY = event.data.y || 0;
     } else if (type === "dispose") {
         disposed = true;
         if (rafHandle != null) cancelAnimationFrame(rafHandle);

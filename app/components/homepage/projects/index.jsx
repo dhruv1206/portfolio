@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { projectsData } from "@/utils/data/projects-data";
-import { BentoCard, ProjectModal } from "./bento-card";
+import { BentoCard } from "./bento-card";
 import { FadeIn } from "../../ui/page-transition";
 
 // Assign sizes to projects for bento grid layout
@@ -13,8 +12,6 @@ const getProjectSize = (index) => {
 };
 
 const Projects = () => {
-    const [selectedProject, setSelectedProject] = useState(null);
-
     return (
         <section id="projects" className="relative py-24 lg:py-32">
             {/* Background decoration */}
@@ -37,7 +34,7 @@ const Projects = () => {
                     <h2 className="section-heading">Featured Work</h2>
                     <p className="section-subheading mx-auto">
                         A selection of projects I&apos;ve built, from full-stack applications
-                        to innovative solutions.
+                        to innovative solutions. Click any card for the case study and live demos.
                     </p>
                 </div>
             </FadeIn>
@@ -50,7 +47,6 @@ const Projects = () => {
                         project={project}
                         index={index}
                         size={getProjectSize(index)}
-                        onViewDetails={setSelectedProject}
                     />
                 ))}
             </div>
@@ -63,16 +59,6 @@ const Projects = () => {
                     </span>
                 </div>
             </FadeIn>
-
-            {/* Project Modal */}
-            <AnimatePresence>
-                {selectedProject && (
-                    <ProjectModal
-                        project={selectedProject}
-                        onClose={() => setSelectedProject(null)}
-                    />
-                )}
-            </AnimatePresence>
         </section>
     );
 };
