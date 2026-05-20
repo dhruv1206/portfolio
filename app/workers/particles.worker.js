@@ -35,15 +35,15 @@ let mouseX = -10000;
 let mouseY = -10000;
 let mouseRadius = 0;
 
-// Simulation tuning. Tuned aggressively while bringing the layer in;
-// we can dial these back once the particle field is reliably visible
-// against the hero's near-black background.
+// Simulation tuning. Quiet starfield: particles drift almost
+// independently, with just enough flow to keep them alive. Hero text
+// + SystemTopology stay the focus.
 const config = {
-    mouseForce: 320000, // px/s² peak inside the radius
-    springK: 0,         // 0 = pure ambient flow (text-formation reserved for later)
-    damping: 0.93,
-    particleSize: 4.0,  // half-extent in device px; ~8px visible diameter at dpr=2
-    flowStrength: 28,
+    mouseForce: 220000,
+    springK: 0,         // 0 = ambient flow (text-formation reserved for later)
+    damping: 0.97,      // higher = slower / longer settling
+    particleSize: 1.3,  // half-extent in device px
+    flowStrength: 3.2,  // very gentle drift — bigger values cluster particles into visible curl bands
 };
 
 function postError(message) {
@@ -247,10 +247,22 @@ async function init({
             targets: [
                 {
                     format,
-                    // Additive blending for that "glow" feel.
+                    // Standard over-composite with premultiplied alpha.
+                    // Additive blending (src=one, dst=one) accumulated
+                    // brightness wherever particles clustered, turning
+                    // dense regions into a saturated violet wall — wrong
+                    // look for an ambient backdrop.
                     blend: {
-                        color: { srcFactor: "one", dstFactor: "one", operation: "add" },
-                        alpha: { srcFactor: "one", dstFactor: "one", operation: "add" },
+                        color: {
+                            srcFactor: "one",
+                            dstFactor: "one-minus-src-alpha",
+                            operation: "add",
+                        },
+                        alpha: {
+                            srcFactor: "one",
+                            dstFactor: "one-minus-src-alpha",
+                            operation: "add",
+                        },
                     },
                 },
             ],

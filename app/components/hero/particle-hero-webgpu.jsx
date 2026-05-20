@@ -6,9 +6,11 @@ import { useMounted } from "@/app/hooks/use-mounted";
 import { usePrefersReducedMotion } from "@/app/hooks/use-performance";
 
 // Particle counts tuned for ~60fps on a 4-year-old laptop GPU.
-const PARTICLE_COUNT_WEBGPU = 80000;
-const PARTICLE_COUNT_CANVAS = 1500;
-const MOUSE_RADIUS = 220; // pixels (CSS), scaled by DPR before posting
+// Sparse starfield, not a snow globe — particles are atmosphere, the
+// hero text and SystemTopology are the focus.
+const PARTICLE_COUNT_WEBGPU = 10000;
+const PARTICLE_COUNT_CANVAS = 600;
+const MOUSE_RADIUS = 160; // pixels (CSS), scaled by DPR before posting
 
 /**
  * ParticleHeroWebGPU
@@ -207,9 +209,7 @@ export default function ParticleHeroWebGPU() {
                 last = now;
 
                 ctx.globalCompositeOperation = "source-over";
-                ctx.fillStyle = "rgba(0,0,0,0.0)";
                 ctx.clearRect(0, 0, width, height);
-                ctx.globalCompositeOperation = "lighter";
 
                 const radius = MOUSE_RADIUS * dpr;
                 for (const p of particles) {
@@ -244,12 +244,12 @@ export default function ParticleHeroWebGPU() {
                         1,
                     );
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, 1.6 * dpr, 0, Math.PI * 2);
+                    ctx.arc(p.x, p.y, 1.2 * dpr, 0, Math.PI * 2);
                     // violet -> cyan ramp
                     const r = Math.round(139 + (6 - 139) * speed);
                     const g = Math.round(92 + (182 - 92) * speed);
                     const b = Math.round(246 + (212 - 246) * speed);
-                    ctx.fillStyle = `rgba(${r},${g},${b},0.55)`;
+                    ctx.fillStyle = `rgba(${r},${g},${b},0.45)`;
                     ctx.fill();
                 }
 

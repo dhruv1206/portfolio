@@ -157,14 +157,15 @@ fn vs_main(@builtin(vertex_index) vi: u32, in: VSIn) -> VSOut {
     out.position = vec4<f32>(ndc.x, -ndc.y, 0.0, 1.0);
     out.uv = local;
 
-    // Violet -> cyan ramp on speed, brightness-multiplied so additive
-    // blending against a near-black background reads as a real glow.
+    // Violet -> cyan ramp on speed. No brightness multiplier — the
+    // pipeline uses alpha blending now, not additive, so each particle
+    // contributes once instead of stacking.
     let speed = length(in.vel);
     let intensity = clamp(speed / 180.0, 0.0, 1.0);
     let violet = vec3<f32>(0.545, 0.361, 0.965); // #8b5cf6
     let cyan   = vec3<f32>(0.024, 0.714, 0.831); // #06b6d4
-    let rgb = mix(violet, cyan, intensity) * 2.0;
-    out.color = vec4<f32>(rgb, 1.0);
+    let rgb = mix(violet, cyan, intensity);
+    out.color = vec4<f32>(rgb, 0.40);
     return out;
 }
 
@@ -172,9 +173,8 @@ fn vs_main(@builtin(vertex_index) vi: u32, in: VSIn) -> VSOut {
 fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
     let d = length(in.uv);
     if (d > 1.0) { discard; }
-    // Bright hot centre + long soft tail so each particle reads as a glow.
-    let core = 1.0 - smoothstep(0.0, 0.35, d);
-    let halo = 1.0 - smoothstep(0.0, 1.0, d);
-    let alpha = (core * 0.9 + halo * 0.35) * in.color.a;
+    // Smooth radial falloff so each particle reads as a small soft dot
+    // rather than a hard square.
+    let alpha = (1.0 - smoothstep(0.0, 1.0, d)) * in.color.a;
     return vec4<f32>(in.color.rgb * alpha, alpha);
 }
