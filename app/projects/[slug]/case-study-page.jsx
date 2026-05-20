@@ -8,7 +8,6 @@ import { BsGithub, BsArrowLeft } from "react-icons/bs";
 import { MdArrowOutward } from "react-icons/md";
 import {
     StickySidebar,
-    BeforeAfterSlider,
     VideoEmbed,
 } from "@/app/components/case-study/case-study-components";
 import MagneticButton from "@/app/components/ui/magnetic-button";
@@ -20,6 +19,10 @@ const DStarDBREPL = dynamic(
     () => import("@/app/components/case-study/dstardb-repl"),
     { ssr: false },
 );
+const WebRTCDemo = dynamic(
+    () => import("@/app/components/case-study/webrtc-demo"),
+    { ssr: false },
+);
 
 const LIVE_DEMOS = {
     dstardb: {
@@ -27,6 +30,12 @@ const LIVE_DEMOS = {
         subtitle:
             "Real Redis-style command set, running entirely in this tab via a Web Worker. Open the REPL and type — every response is timed in microseconds.",
         Component: DStarDBREPL,
+    },
+    "realtime-collaboration": {
+        title: "Open a real-time room",
+        subtitle:
+            "A real RTCPeerConnection negotiated in your browser. Open this page in a second tab and the two tabs auto-pair over BroadcastChannel — otherwise the demo connects to a synthetic peer over loopback. Either way, the video, RTT, and bitrate stats below are coming from the real WebRTC stack.",
+        Component: WebRTCDemo,
     },
 };
 
