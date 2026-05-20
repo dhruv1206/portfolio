@@ -35,6 +35,9 @@ yarn-error.log*
 .claude/
 /tmp/og*.png
 
+# lighthouse ci outputs (kept local, not committed)
+.lighthouseci/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

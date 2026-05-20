@@ -2,10 +2,22 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
+import { useMounted } from "@/app/hooks/use-mounted";
+import { useFeatureSupport } from "@/app/hooks/use-feature-support";
 
 const CustomCursor = () => {
+    // Touch-capable devices (phones/tablets) skip the custom cursor —
+    // they don't have a hover state to enhance. We read this with
+    // useSyncExternalStore-backed `useFeatureSupport` so there's no
+    // setState-in-effect anti-pattern; the SSR snapshot returns false
+    // so the server renders nothing and hydration completes cleanly.
+    const isTouchDevice = useFeatureSupport(
+        () => "ontouchstart" in window || navigator.maxTouchPoints > 0,
+    );
+    const mounted = useMounted();
+
     const [isHovering, setIsHovering] = useState(false);
-    const [isVisible, setIsVisible] = useState(false);
+    const [isPointerOnPage, setIsPointerOnPage] = useState(true);
     const [cursorText, setCursorText] = useState("");
 
     const cursorX = useMotionValue(-100);
@@ -25,19 +37,14 @@ const CustomCursor = () => {
     );
 
     useEffect(() => {
-        // Check if device has touch capability (mobile)
-        const isTouchDevice =
-            "ontouchstart" in window || navigator.maxTouchPoints > 0;
         if (isTouchDevice) return;
-
-        setIsVisible(true);
 
         const handleMouseMove = (e) => {
             moveCursor(e);
         };
 
-        const handleMouseEnter = () => setIsVisible(true);
-        const handleMouseLeave = () => setIsVisible(false);
+        const handleMouseEnter = () => setIsPointerOnPage(true);
+        const handleMouseLeave = () => setIsPointerOnPage(false);
 
         // Add hover detection for interactive elements
         const addHoverListeners = () => {
@@ -80,8 +87,9 @@ const CustomCursor = () => {
             document.removeEventListener("mouseleave", handleMouseLeave);
             observer.disconnect();
         };
-    }, [moveCursor]);
+    }, [moveCursor, isTouchDevice]);
 
+    const isVisible = mounted && !isTouchDevice && isPointerOnPage;
     if (!isVisible) return null;
 
     return (
@@ -108,10 +116,7 @@ const CustomCursor = () => {
                         stiffness: 300,
                     }}
                 >
-                    <div
-                        className={`rounded-full bg-white transition-all duration-200 ${isHovering ? "w-full h-full" : "w-full h-full"
-                            }`}
-                    />
+                    <div className="rounded-full bg-white w-full h-full transition-all duration-200" />
                     {cursorText && (
                         <span className="absolute text-black text-xs font-medium whitespace-nowrap">
                             {cursorText}

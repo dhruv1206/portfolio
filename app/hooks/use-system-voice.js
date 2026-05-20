@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAudio } from "@/app/providers/audio-provider";
+import { useFeatureSupport } from "@/app/hooks/use-feature-support";
 
 // ============================================================================
 // VOICE CASTING - Premium Voice Selection
@@ -120,11 +121,15 @@ const HELP_SCRIPTS = {
 
 export function useSystemVoice() {
     const { isMuted } = useAudio();
-    
-    const [isSupported, setIsSupported] = useState(false);
+
+    // Feature detection without setState-in-effect.
+    const isSupported = useFeatureSupport(
+        () => Boolean(window.speechSynthesis),
+    );
+
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [selectedVoice, setSelectedVoice] = useState(null);
-    
+
     const synthRef = useRef(null);
     const utteranceRef = useRef(null);
     const onSpeakStartRef = useRef(null);
@@ -138,17 +143,14 @@ export function useSystemVoice() {
     // ========================================================================
     // INITIALIZATION
     // ========================================================================
-    
+
+    // selectedVoice updates come from speechSynthesis.onvoiceschanged,
+    // which is an external-system event — the canonical setState-from-
+    // subscription pattern that react-hooks/set-state-in-effect allows.
     useEffect(() => {
-        if (typeof window === "undefined" || !window.speechSynthesis) {
-            setIsSupported(false);
-            return;
-        }
-        
+        if (!isSupported) return undefined;
         synthRef.current = window.speechSynthesis;
-        setIsSupported(true);
-        
-        // Voice selection
+
         const loadVoices = () => {
             const voices = synthRef.current.getVoices();
             if (voices.length > 0) {
@@ -157,14 +159,14 @@ export function useSystemVoice() {
                 console.debug("[SystemVoice] Selected:", best?.name);
             }
         };
-        
+
         loadVoices();
         synthRef.current.onvoiceschanged = loadVoices;
-        
+
         return () => {
             synthRef.current?.cancel();
         };
-    }, []);
+    }, [isSupported]);
 
     // ========================================================================
     // SPEAK FUNCTION (Interrupt-First Architecture)

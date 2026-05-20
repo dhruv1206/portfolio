@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { personalData } from "@/utils/data/personal-data";
+import { useMounted } from "@/app/hooks/use-mounted";
 import MagneticButton from "../../ui/magnetic-button";
 import { BsGithub, BsLinkedin } from "react-icons/bs";
 import { SiLeetcode } from "react-icons/si";
@@ -29,12 +30,8 @@ const socialLinks = [
 ];
 
 function HeroSection() {
-    const [mounted, setMounted] = useState(false);
+    const mounted = useMounted();
     const containerRef = useRef(null);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     // Text animation variants
     const containerVariants = {

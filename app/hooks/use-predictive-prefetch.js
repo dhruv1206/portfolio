@@ -114,9 +114,12 @@ export function usePredictivePrefetch(targets = []) {
         };
     }, [targets, router, trackMouse, getVelocity, projectTrajectory]);
 
+    // Expose the prefetched-set as a getter — reading `.current` during
+    // render is rejected by react-hooks/refs. Callers invoke
+    // `getPrefetchedUrls()` when they actually need the data.
     return {
         getVelocity,
-        prefetchedUrls: prefetchedUrls.current,
+        getPrefetchedUrls: () => prefetchedUrls.current,
     };
 }
 

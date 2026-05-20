@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
+import Image from "next/image";
 
 /**
- * StickySidebar - Challenge/Solution navigation for case studies
+ * StickySidebar - Challenge/Solution navigation for case studies.
+ * Drops to two anchor links that scroll to #challenge and #solution
+ * in the parent layout. No props consumed today; Phase 3's scroll-cinema
+ * rewrite will reintroduce a richer API.
  */
-export const StickySidebar = ({ challenge, solution }) => {
+export const StickySidebar = () => {
     const [activeSection, setActiveSection] = useState("challenge");
 
     return (
@@ -128,10 +132,12 @@ export const BeforeAfterSlider = ({ beforeImage, afterImage, beforeLabel = "Befo
         >
             {/* After image (full width) */}
             <div className="absolute inset-0">
-                <img
+                <Image
                     src={afterImage}
                     alt={afterLabel}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="(min-width: 1024px) 80vw, 100vw"
+                    className="object-cover"
                     draggable={false}
                 />
                 <span className="absolute top-4 right-4 px-3 py-1 bg-cyan-500/80 text-white text-xs font-medium rounded-full">
@@ -144,10 +150,12 @@ export const BeforeAfterSlider = ({ beforeImage, afterImage, beforeLabel = "Befo
                 className="absolute inset-0 overflow-hidden"
                 style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
             >
-                <img
+                <Image
                     src={beforeImage}
                     alt={beforeLabel}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="(min-width: 1024px) 80vw, 100vw"
+                    className="object-cover"
                     draggable={false}
                 />
                 <span className="absolute top-4 left-4 px-3 py-1 bg-violet-500/80 text-white text-xs font-medium rounded-full">
@@ -223,10 +231,12 @@ export const VideoEmbed = ({ url, thumbnail, title }) => {
             {/* Thumbnail */}
             <div className="absolute inset-0 bg-dark-800">
                 {thumbnail && (
-                    <img
+                    <Image
                         src={thumbnail}
                         alt={title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        fill
+                        sizes="(min-width: 1024px) 80vw, 100vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                 )}
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
@@ -259,4 +269,6 @@ export const VideoEmbed = ({ url, thumbnail, title }) => {
     );
 };
 
-export default { StickySidebar, BeforeAfterSlider, VideoEmbed };
+const caseStudyComponents = { StickySidebar, BeforeAfterSlider, VideoEmbed };
+
+export default caseStudyComponents;

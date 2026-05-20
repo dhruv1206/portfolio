@@ -262,7 +262,7 @@ export function getCurrentSection() {
     return currentSection;
 }
 
-export default {
+const generativeAudio = {
     initGenerativeAudio,
     startGenerativeAudio,
     stopGenerativeAudio,
@@ -271,3 +271,5 @@ export default {
     isAudioPlaying,
     getCurrentSection,
 };
+
+export default generativeAudio;

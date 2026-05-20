@@ -1,6 +1,11 @@
-"use client";
+// Server Component: renders the full footer including the dynamic
+// copyright year. Removing the previous "use client" directive (and the
+// motion/AnimatePresence imports) lets Cache Components statically
+// prerender the route while still keeping `new Date()` correct on each
+// build/revalidate. The heart-pulse animation is CSS (`animate-heartbeat`
+// defined in globals.scss) and hover transforms are Tailwind utilities,
+// so no React state is needed.
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { personalData } from "@/utils/data/personal-data";
 import { BsGithub, BsLinkedin, BsHeart } from "react-icons/bs";
@@ -21,13 +26,13 @@ const navLinks = [
     { name: "Contact", href: "#contact" },
 ];
 
-// Hardcoded to keep the route eligible for Cache Components / PPR
-// static prerender. `new Date()` in a Client Component is rejected by
-// Next 16's Cache Components analyser. Bump this on Jan 1 each year.
-const COPYRIGHT_YEAR = 2026;
-
 function Footer() {
-    const currentYear = COPYRIGHT_YEAR;
+    // BUILD_YEAR is injected at build time by `next.config.js`'s `env`
+    // field, so the literal is baked into the bundle — Cache Components
+    // sees a static string. Year refreshes on every deploy / ISR
+    // revalidation (≤1h per the route config), which is plenty often
+    // enough for a copyright line.
+    const currentYear = process.env.BUILD_YEAR;
 
     return (
         <footer className="relative border-t border-white/5 bg-dark-900/50 backdrop-blur-sm">
@@ -77,17 +82,16 @@ function Footer() {
                         </h4>
                         <div className="flex gap-3">
                             {socialLinks.map((social) => (
-                                <motion.div key={social.label} whileHover={{ y: -2 }}>
-                                    <Link
-                                        href={social.href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-violet-400 hover:border-violet-500/50 transition-all"
-                                        aria-label={social.label}
-                                    >
-                                        <social.icon size={18} />
-                                    </Link>
-                                </motion.div>
+                                <Link
+                                    key={social.label}
+                                    href={social.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-violet-400 hover:border-violet-500/50 hover:-translate-y-0.5 transition-all duration-200"
+                                    aria-label={social.label}
+                                >
+                                    <social.icon size={18} />
+                                </Link>
                             ))}
                         </div>
                     </div>
@@ -113,12 +117,9 @@ function Footer() {
 
                     <p className="flex items-center gap-1">
                         Made with{" "}
-                        <motion.span
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 1, repeat: Infinity }}
-                        >
+                        <span className="inline-flex animate-heartbeat origin-center">
                             <BsHeart className="text-pink-500" />
-                        </motion.span>{" "}
+                        </span>{" "}
                         & Next.js
                     </p>
                 </div>

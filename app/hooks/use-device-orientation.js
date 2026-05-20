@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useFeatureSupport } from "@/app/hooks/use-feature-support";
 
 /**
  * useDeviceOrientation - Gyroscope access for mobile parallax
  */
 export function useDeviceOrientation() {
-    const [isSupported, setIsSupported] = useState(false);
+    // Feature detection without setState-in-effect.
+    const isSupported = useFeatureSupport(
+        () => "DeviceOrientationEvent" in window,
+    );
     const [hasPermission, setHasPermission] = useState(false);
     const [orientation, setOrientation] = useState({
         alpha: 0, // Z-axis rotation (0-360)
@@ -14,13 +18,6 @@ export function useDeviceOrientation() {
         gamma: 0, // Y-axis rotation (-90 to 90)
     });
     const [isActive, setIsActive] = useState(false);
-
-    // Check support
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            setIsSupported("DeviceOrientationEvent" in window);
-        }
-    }, []);
 
     // Handle orientation change
     const handleOrientation = useCallback((event) => {

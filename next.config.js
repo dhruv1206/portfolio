@@ -9,6 +9,12 @@ const nextConfig = {
         includePaths: [path.join(__dirname, "styles")],
     },
 
+    // Build-time substituted env vars. Treated as static literals after
+    // build, so they don't trip Cache Components' "current-time" guard.
+    env: {
+        BUILD_YEAR: new Date().getFullYear().toString(),
+    },
+
     // Optimized image configuration
     images: {
         // Use modern formats

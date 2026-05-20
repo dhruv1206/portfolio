@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { BsGithub, BsArrowLeft } from "react-icons/bs";
 import { MdArrowOutward } from "react-icons/md";
@@ -87,10 +88,7 @@ export default function CaseStudyPage({ project }) {
             {/* Main content with sidebar */}
             <div className="flex gap-12">
                 {/* Sidebar */}
-                <StickySidebar
-                    challenge={project.challenge}
-                    solution={project.solution}
-                />
+                <StickySidebar />
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
@@ -189,12 +187,14 @@ export default function CaseStudyPage({ project }) {
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: index * 0.1 }}
-                                            className="rounded-xl overflow-hidden"
+                                            className="relative aspect-video rounded-xl overflow-hidden"
                                         >
-                                            <img
+                                            <Image
                                                 src={image}
                                                 alt={`${project.name} screenshot ${index + 1}`}
-                                                className="w-full h-full object-cover"
+                                                fill
+                                                sizes="(min-width: 768px) 50vw, 100vw"
+                                                className="object-cover"
                                             />
                                         </motion.div>
                                     ))}

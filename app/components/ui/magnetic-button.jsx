@@ -31,21 +31,12 @@ const MagneticButton = ({
     const contentX = useSpring(x, { damping: 25, stiffness: 400, mass: 0.3 });
     const contentY = useSpring(y, { damping: 25, stiffness: 400, mass: 0.3 });
 
-    // Audio and haptics (with fallback if not in provider)
-    let playSound = () => { };
-    let vibrateOnTap = () => { };
-    try {
-        const audio = useAudio();
-        playSound = audio.playSound;
-    } catch {
-        // AudioProvider not available
-    }
-    try {
-        const haptics = useHaptics();
-        vibrateOnTap = haptics.vibrateOnTap;
-    } catch {
-        // Haptics not available
-    }
+    // Audio + haptics. Both hooks always return objects (useAudio's
+    // context has a default, useHaptics has no provider dependency), so
+    // they can be called unconditionally — the previous try/catch wrapper
+    // confused the dependency tracker for the useCallbacks below.
+    const { playSound } = useAudio();
+    const { vibrateOnTap } = useHaptics();
 
     // Reset position with sound effect
     const resetPosition = useCallback(() => {
@@ -176,7 +167,10 @@ const MagneticButton = ({
     ${className}
   `;
 
-    const ButtonContent = () => (
+    // Inline JSX instead of inner components — defining components
+    // inside another component breaks memoization (each render is a new
+    // component identity) and is rejected by react-hooks/static-components.
+    const buttonContent = (
         <motion.span
             className="relative z-10 flex items-center gap-2"
             style={{ x: contentX, y: contentY }}
@@ -185,17 +179,13 @@ const MagneticButton = ({
         </motion.span>
     );
 
-    const MotionWrapper = ({ children: wrapperChildren }) => (
-        <motion.div
-            ref={buttonRef}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            style={{ x: springX, y: springY }}
-            className="inline-block will-change-transform"
-        >
-            {wrapperChildren}
-        </motion.div>
-    );
+    const motionWrapperProps = {
+        ref: buttonRef,
+        onMouseEnter: handleMouseEnter,
+        onMouseLeave: handleMouseLeave,
+        style: { x: springX, y: springY },
+        className: "inline-block will-change-transform",
+    };
 
     if (href) {
         const linkProps = external
@@ -203,7 +193,7 @@ const MagneticButton = ({
             : {};
 
         return (
-            <MotionWrapper>
+            <motion.div {...motionWrapperProps}>
                 <Link
                     href={href}
                     className={baseClasses}
@@ -211,18 +201,18 @@ const MagneticButton = ({
                     {...linkProps}
                     {...props}
                 >
-                    <ButtonContent />
+                    {buttonContent}
                 </Link>
-            </MotionWrapper>
+            </motion.div>
         );
     }
 
     return (
-        <MotionWrapper>
+        <motion.div {...motionWrapperProps}>
             <button onClick={handleClick} className={baseClasses} {...props}>
-                <ButtonContent />
+                {buttonContent}
             </button>
-        </MotionWrapper>
+        </motion.div>
     );
 };
 

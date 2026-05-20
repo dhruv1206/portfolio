@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { createContext, useContext, useEffect, useCallback, useRef } from "react";
+import { useMounted } from "@/app/hooks/use-mounted";
+import { useLocalStorageBoolean } from "@/app/hooks/use-localstorage-state";
 
 const AudioContextAPI = createContext({
     isMuted: true,
@@ -12,28 +14,21 @@ const AudioContextAPI = createContext({
 });
 
 export function AudioProvider({ children }) {
-    const [isMuted, setIsMuted] = useState(true);
-    const [isAmbientEnabled, setIsAmbientEnabled] = useState(false);
-    const [isClient, setIsClient] = useState(false);
+    // Hydration-safe persistent state. useSyncExternalStore-backed
+    // helpers eliminate the setState-in-effect pattern that
+    // react-hooks/set-state-in-effect (correctly) flags.
+    const isClient = useMounted();
+    const [isMuted, setIsMuted] = useLocalStorageBoolean("audio-muted", true);
+    const [isAmbientEnabled, setIsAmbientEnabled] = useLocalStorageBoolean(
+        "audio-ambient",
+        false,
+    );
 
     // WebAudio context and oscillator refs
     const audioContextRef = useRef(null);
     const oscillatorRef = useRef(null);
     const gainNodeRef = useRef(null);
     const filterRef = useRef(null);
-
-    useEffect(() => {
-        setIsClient(true);
-        // Check localStorage for preferences
-        const savedMute = localStorage.getItem("audio-muted");
-        const savedAmbient = localStorage.getItem("audio-ambient");
-        if (savedMute !== null) {
-            setIsMuted(savedMute === "true");
-        }
-        if (savedAmbient !== null) {
-            setIsAmbientEnabled(savedAmbient === "true");
-        }
-    }, []);
 
     // Initialize WebAudio for ambient noise
     const initAmbientAudio = useCallback(() => {
@@ -137,20 +132,12 @@ export function AudioProvider({ children }) {
     }, [isAmbientEnabled, isMuted]);
 
     const toggleMute = useCallback(() => {
-        setIsMuted((prev) => {
-            const newValue = !prev;
-            localStorage.setItem("audio-muted", String(newValue));
-            return newValue;
-        });
-    }, []);
+        setIsMuted((prev) => !prev);
+    }, [setIsMuted]);
 
     const toggleAmbient = useCallback(() => {
-        setIsAmbientEnabled((prev) => {
-            const newValue = !prev;
-            localStorage.setItem("audio-ambient", String(newValue));
-            return newValue;
-        });
-    }, []);
+        setIsAmbientEnabled((prev) => !prev);
+    }, [setIsAmbientEnabled]);
 
     const playSound = useCallback(
         async (soundName) => {

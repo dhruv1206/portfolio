@@ -3,6 +3,42 @@
 import { useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 
+// Hoisted out of the component so the class identity is stable across
+// renders (otherwise the useCallback that closes over `Particle` would
+// need it as a dep, but the dep would change every render).
+class Particle {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.life = 1;
+        this.size = 20 + Math.random() * 30;
+    }
+
+    update(dt) {
+        // Apply velocity
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Apply friction
+        this.vx *= 0.98;
+        this.vy *= 0.98;
+
+        // Decay life
+        this.life *= 0.99;
+    }
+
+    draw(ctx) {
+        if (this.life < 0.01) return;
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(139, 92, 246, ${this.life * 0.3})`;
+        ctx.fill();
+    }
+}
+
 /**
  * FluidCursor - GPU-accelerated fluid simulation that reacts to mouse movement
  * Uses a simplified fluid solver via CSS filters and canvas
@@ -13,40 +49,6 @@ const FluidCursor = ({ opacity = 0.05 }) => {
     const particlesRef = useRef([]);
     const mouseRef = useRef({ x: 0, y: 0, px: 0, py: 0 });
     const animationRef = useRef(null);
-
-    // Particle class for fluid simulation
-    class Particle {
-        constructor(x, y) {
-            this.x = x;
-            this.y = y;
-            this.vx = 0;
-            this.vy = 0;
-            this.life = 1;
-            this.size = 20 + Math.random() * 30;
-        }
-
-        update(dt) {
-            // Apply velocity
-            this.x += this.vx * dt;
-            this.y += this.vy * dt;
-
-            // Apply friction
-            this.vx *= 0.98;
-            this.vy *= 0.98;
-
-            // Decay life
-            this.life *= 0.99;
-        }
-
-        draw(ctx) {
-            if (this.life < 0.01) return;
-
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(139, 92, 246, ${this.life * 0.3})`;
-            ctx.fill();
-        }
-    }
 
     // Initialize canvas
     useEffect(() => {
