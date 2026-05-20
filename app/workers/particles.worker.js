@@ -37,11 +37,11 @@ let mouseRadius = 0;
 
 // Simulation tuning.
 const config = {
-    mouseForce: 220000, // px/s² peak inside the radius
+    mouseForce: 320000, // px/s² peak inside the radius
     springK: 0,         // 0 = pure ambient flow (text-formation reserved for later)
-    damping: 0.92,
-    particleSize: 1.4,
-    flowStrength: 14,
+    damping: 0.93,
+    particleSize: 2.6,  // half-extent in device px; ~5px visible diameter at dpr=2
+    flowStrength: 22,
 };
 
 function postError(message) {

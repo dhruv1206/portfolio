@@ -6,9 +6,9 @@ import { useMounted } from "@/app/hooks/use-mounted";
 import { usePrefersReducedMotion } from "@/app/hooks/use-performance";
 
 // Particle counts tuned for ~60fps on a 4-year-old laptop GPU.
-const PARTICLE_COUNT_WEBGPU = 60000;
-const PARTICLE_COUNT_CANVAS = 1200;
-const MOUSE_RADIUS = 140; // pixels (CSS), scaled by DPR before posting
+const PARTICLE_COUNT_WEBGPU = 80000;
+const PARTICLE_COUNT_CANVAS = 1500;
+const MOUSE_RADIUS = 220; // pixels (CSS), scaled by DPR before posting
 
 /**
  * ParticleHeroWebGPU
@@ -286,8 +286,10 @@ export default function ParticleHeroWebGPU() {
                 ref={canvasRef}
                 // Container has pointer-events:none, but re-enable on the
                 // canvas so the particle layer captures the mouse.
+                // No mix-blend-mode — the pipeline already does additive
+                // blending; stacking another blend mode here under-mixes
+                // the result against the dark hero background.
                 className="absolute inset-0 pointer-events-auto"
-                style={{ mixBlendMode: "screen" }}
             />
         </div>
     );
