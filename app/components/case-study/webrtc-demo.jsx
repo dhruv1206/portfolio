@@ -75,23 +75,28 @@ function generatePeerId() {
     );
 }
 
-// ---------- Synthetic stream (loopback "remote") ----------
+// ---------- Synthetic stream ----------
 // Canvas + AudioContext → MediaStream. Animates a gradient hexagon
-// clock so the visitor can SEE the stream is alive on the wire
-// (vs a still image).
-function createSyntheticStream(width = 640, height = 480) {
+// clock so the visitor sees the stream is alive on the wire (vs a
+// still image). Used as the DEFAULT local stream — the demo doesn't
+// request camera permission unless the visitor opts in. That avoids
+// the same-laptop-two-tabs pitfall where the OS only gives one tab
+// working camera frames and the other tab sends empty black tracks.
+function createSyntheticStream(label = "synthetic peer", width = 640, height = 480) {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
     let raf = 0;
     const start = performance.now();
+    // Stable hue offset per stream so two tabs visually differ.
+    const hueSeed = Math.floor(Math.random() * 360);
 
     function draw(now) {
         const t = (now - start) / 1000;
         const grd = ctx.createLinearGradient(0, 0, width, height);
-        grd.addColorStop(0, `hsl(${(t * 30) % 360}, 70%, 18%)`);
-        grd.addColorStop(1, `hsl(${(t * 30 + 90) % 360}, 70%, 8%)`);
+        grd.addColorStop(0, `hsl(${(hueSeed + t * 30) % 360}, 70%, 18%)`);
+        grd.addColorStop(1, `hsl(${(hueSeed + t * 30 + 90) % 360}, 70%, 8%)`);
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, width, height);
 
@@ -120,7 +125,7 @@ function createSyntheticStream(width = 640, height = 480) {
 
         ctx.font = "14px ui-monospace, monospace";
         ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText("synthetic peer", width / 2, 32);
+        ctx.fillText(label, width / 2, 32);
 
         raf = requestAnimationFrame(draw);
     }
@@ -141,6 +146,7 @@ function createSyntheticStream(width = 640, height = 480) {
         /* audio is non-essential */
     }
     stream._dispose = () => cancelAnimationFrame(raf);
+    stream._isSynthetic = true;
     return stream;
 }
 
@@ -306,23 +312,95 @@ export default function WebRTCDemo() {
         [fullCleanup],
     );
 
-    // ---------- Local media (camera/mic with synthetic fallback) ----------
-    const acquireLocalStream = useCallback(async () => {
+    const [localIsCamera, setLocalIsCamera] = useState(false);
+    const [cameraToggling, setCameraToggling] = useState(false);
+
+    // ---------- Local media ----------
+    // Default to a synthetic Canvas stream so the demo NEVER blocks on
+    // a permission prompt and the same-laptop-two-tabs case stays
+    // sane (the second tab's getUserMedia can silently produce empty
+    // frames). Visitor opts in via the "Use my camera" button, which
+    // calls enableCamera() to swap the synthetic track for a real one
+    // via RTCRtpSender.replaceTrack — no renegotiation required.
+    const createInitialLocalStream = useCallback(() => {
+        return createSyntheticStream("you");
+    }, []);
+
+    // Swap the current local stream's tracks on the live PC without
+    // renegotiating SDP. RTCRtpSender.replaceTrack handles the codec
+    // swap inline — the remote keeps the same RTP stream, the frames
+    // just start arriving from a different source.
+    const swapLocalStream = useCallback(
+        async (nextStream) => {
+            const pc = localPcRef.current;
+            if (pc) {
+                const senders = pc.getSenders();
+                for (const track of nextStream.getTracks()) {
+                    const sender = senders.find(
+                        (s) => s.track && s.track.kind === track.kind,
+                    );
+                    if (sender) {
+                        try {
+                            await sender.replaceTrack(track);
+                        } catch (e) {
+                            console.warn("[webrtc] replaceTrack failed:", e);
+                        }
+                    } else {
+                        // No sender yet for this kind — add a new one. This
+                        // path triggers renegotiation, which our loopback
+                        // mode handles in-process. For room mode the
+                        // initial synthetic stream already has both video
+                        // + audio tracks, so this branch shouldn't fire.
+                        pc.addTrack(track, nextStream);
+                    }
+                }
+            }
+            const prev = localStreamRef.current;
+            if (prev && prev !== nextStream) {
+                prev._dispose?.();
+                prev.getTracks().forEach((t) => t.stop());
+            }
+            localStreamRef.current = nextStream;
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = nextStream;
+            }
+        },
+        [],
+    );
+
+    const enableCamera = useCallback(async () => {
+        if (cameraToggling) return;
+        setCameraToggling(true);
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+            const camStream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: true,
             });
-            log("system", "Camera + mic granted.");
-            return stream;
-        } catch {
+            await swapLocalStream(camStream);
+            setLocalIsCamera(true);
+            log("system", "Camera + mic enabled — replacing synthetic track.");
+        } catch (e) {
             log(
                 "system",
-                "Camera/mic blocked — using synthetic local stream so the connection still has something to send.",
+                `Camera/mic denied (${e?.name || "error"}). Staying on synthetic stream.`,
             );
-            return createSyntheticStream();
+        } finally {
+            setCameraToggling(false);
         }
-    }, [log]);
+    }, [cameraToggling, log, swapLocalStream]);
+
+    const disableCamera = useCallback(async () => {
+        if (cameraToggling) return;
+        setCameraToggling(true);
+        try {
+            const synth = createSyntheticStream("you");
+            await swapLocalStream(synth);
+            setLocalIsCamera(false);
+            log("system", "Camera disabled — back to synthetic stream.");
+        } finally {
+            setCameraToggling(false);
+        }
+    }, [cameraToggling, log, swapLocalStream]);
 
     const buildLocalPeerConnection = useCallback(
         (localStream) => {
@@ -356,7 +434,7 @@ export default function WebRTCDemo() {
         setError(null);
         setMode(MODE.LOOPBACK);
         setConnectionState("new");
-        const localStream = await acquireLocalStream();
+        const localStream = createInitialLocalStream();
         localStreamRef.current = localStream;
         if (localVideoRef.current) {
             localVideoRef.current.srcObject = localStream;
@@ -411,7 +489,7 @@ export default function WebRTCDemo() {
         } catch (e) {
             setError(`Loopback negotiation failed: ${e?.message || e}`);
         }
-    }, [acquireLocalStream, buildLocalPeerConnection, log]);
+    }, [createInitialLocalStream, buildLocalPeerConnection, log]);
 
     // ---------- Room mode ----------
     const joinRoom = useCallback(async () => {
@@ -460,7 +538,7 @@ export default function WebRTCDemo() {
         log("system", `Joined room "${roomId}" — peer id ${peerId.slice(0, 8)}`);
 
         // 2. Acquire local media + build the connection.
-        const localStream = await acquireLocalStream();
+        const localStream = createInitialLocalStream();
         localStreamRef.current = localStream;
         if (localVideoRef.current) {
             localVideoRef.current.srcObject = localStream;
@@ -504,7 +582,7 @@ export default function WebRTCDemo() {
         pollLoopActiveRef.current = true;
         startPollLoop(pc);
     }, [
-        acquireLocalStream,
+        createInitialLocalStream,
         buildLocalPeerConnection,
         log,
         passwordInput,
@@ -836,6 +914,10 @@ export default function WebRTCDemo() {
                     shareUrl={mode !== MODE.LOOPBACK ? shareUrl : ""}
                     shareCopied={shareCopied}
                     onCopyShareUrl={copyShareUrl}
+                    localIsCamera={localIsCamera}
+                    cameraToggling={cameraToggling}
+                    onEnableCamera={enableCamera}
+                    onDisableCamera={disableCamera}
                 />
             )}
 
@@ -1057,13 +1139,47 @@ function ActiveSession({
     shareUrl,
     shareCopied,
     onCopyShareUrl,
+    localIsCamera,
+    cameraToggling,
+    onEnableCamera,
+    onDisableCamera,
 }) {
+    // Single-column stack: videos on top, chat below. Side-by-side
+    // layout was breaking inside the case-study sidebar column
+    // because `lg:` matches viewport not container — the demo was
+    // forced into a two-column squeeze and the chat got clipped.
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-0">
-            <div className="p-4 bg-[#06061a]/80 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col bg-[#06061a]/80">
+            <div className="p-4 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <VideoTile ref={localVideoRef} label="you" muted />
                     <VideoTile ref={remoteVideoRef} label={remoteLabel} />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
+                    <button
+                        type="button"
+                        onClick={
+                            localIsCamera ? onDisableCamera : onEnableCamera
+                        }
+                        disabled={cameraToggling}
+                        className={
+                            "px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 " +
+                            (localIsCamera
+                                ? "bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20"
+                                : "bg-violet-500/10 border-violet-500/30 text-violet-200 hover:bg-violet-500/20")
+                        }
+                    >
+                        {cameraToggling
+                            ? "switching…"
+                            : localIsCamera
+                              ? "Disable camera"
+                              : "Use my camera"}
+                    </button>
+                    <span className="text-gray-500">
+                        {localIsCamera
+                            ? "your real camera is streaming — replaceTrack swap, no SDP renegotiation"
+                            : "synthetic stream is being sent; click above to swap in your camera"}
+                    </span>
                 </div>
                 {shareUrl && (
                     <div className="flex items-center gap-2 p-2 rounded-md bg-violet-500/10 border border-violet-500/30 font-mono text-xs">
@@ -1084,8 +1200,8 @@ function ActiveSession({
                 )}
             </div>
 
-            <div className="flex flex-col bg-[#06061a]/80 border-l border-white/5 min-h-[300px]">
-                <div className="flex-1 overflow-y-auto px-4 py-3 font-mono text-[13px] space-y-1.5">
+            <div className="flex flex-col border-t border-white/5">
+                <div className="max-h-[220px] overflow-y-auto px-4 py-3 font-mono text-[13px] space-y-1.5">
                     {messages.map((m, i) => (
                         <div
                             key={i}

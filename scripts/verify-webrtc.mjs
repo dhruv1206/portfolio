@@ -93,16 +93,28 @@ async function main() {
         ],
     });
 
-    // ---------- Scenario 1: Loopback ----------
-    console.log("\n[Scenario 1] Loopback");
+    // ---------- Scenario 1: Loopback (default = synthetic local stream) ----------
+    console.log("\n[Scenario 1] Loopback (synthetic by default)");
     const tabA = await openTab(browser);
-    // Mode = loopback (default when no ?room=). Click Join.
     await clickJoin(tabA.page);
     const state1 = await waitForConnectionState(tabA.page, "connected", 15_000);
     record(
         "loopback: connection reached 'connected'",
         state1 === "connected",
         `state=${state1}`,
+    );
+
+    // The "Use my camera" toggle should be visible — synthetic is the
+    // default, NOT camera. (Previous behavior auto-grabbed the camera
+    // and broke same-laptop dual-tab demos with frozen frames.)
+    const cameraButtonText = await tabA.page
+        .locator(".webrtc-demo button", { hasText: /camera/i })
+        .first()
+        .innerText();
+    record(
+        "loopback: defaults to synthetic, exposes 'Use my camera' opt-in",
+        /Use my camera/i.test(cameraButtonText),
+        `button="${cameraButtonText}"`,
     );
 
     await tabA.page.locator(".webrtc-demo input").last().fill("hello loop");
@@ -114,6 +126,32 @@ async function main() {
         .then((t) => /echo: hello loop/.test(t))
         .catch(() => false);
     record("loopback: DataChannel chat round-trips via echo", sawEcho);
+
+    // Chat panel layout — confirm it lives below the videos (not in a
+    // squeezed sidebar). The chat scroll area should be at LEAST as
+    // wide as the parent .webrtc-demo content, no longer clipped.
+    const chatGeometry = await tabA.page.evaluate(() => {
+        const demo = document.querySelector(".webrtc-demo");
+        const chat = demo?.querySelector(
+            "div.max-h-\\[220px\\], div[class*='max-h-[220px]']",
+        );
+        if (!demo || !chat) return null;
+        const dRect = demo.getBoundingClientRect();
+        const cRect = chat.getBoundingClientRect();
+        return {
+            demoWidth: dRect.width,
+            chatWidth: cRect.width,
+            ratio: cRect.width / dRect.width,
+        };
+    });
+    record(
+        "chat panel takes ~full demo width (single-column stack)",
+        chatGeometry && chatGeometry.ratio > 0.9,
+        chatGeometry
+            ? `demo=${Math.round(chatGeometry.demoWidth)}px chat=${Math.round(chatGeometry.chatWidth)}px ratio=${chatGeometry.ratio.toFixed(2)}`
+            : "no chat element found",
+    );
+
     await tabA.page.screenshot({
         path: `${OUT}/webrtc-loopback.png`,
         fullPage: false,
