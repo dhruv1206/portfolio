@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,6 +13,22 @@ import {
 } from "@/app/components/case-study/case-study-components";
 import MagneticButton from "@/app/components/ui/magnetic-button";
 import { FadeIn } from "@/app/components/ui/page-transition";
+
+// Per-project live demos. Mounted client-side only because each one
+// owns a Web Worker or a peer connection.
+const DStarDBREPL = dynamic(
+    () => import("@/app/components/case-study/dstardb-repl"),
+    { ssr: false },
+);
+
+const LIVE_DEMOS = {
+    dstardb: {
+        title: "Try DStarDB",
+        subtitle:
+            "Real Redis-style command set, running entirely in this tab via a Web Worker. Open the REPL and type — every response is timed in microseconds.",
+        Component: DStarDBREPL,
+    },
+};
 
 export default function CaseStudyPage({ project }) {
     return (
@@ -133,6 +150,30 @@ export default function CaseStudyPage({ project }) {
                             </div>
                         </section>
                     </FadeIn>
+
+                    {/* Live demo (per-project) */}
+                    {LIVE_DEMOS[project.slug] && (
+                        <FadeIn>
+                            <section id="live-demo" className="mb-16">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <span className="text-xs font-mono text-emerald-400">
+                                        ▶
+                                    </span>
+                                    <h2 className="text-2xl md:text-3xl font-display font-bold text-white">
+                                        {LIVE_DEMOS[project.slug].title}
+                                    </h2>
+                                    <div className="flex-1 h-[1px] bg-gradient-to-r from-emerald-500/50 to-transparent" />
+                                </div>
+                                <p className="text-gray-400 leading-relaxed mb-6 max-w-3xl">
+                                    {LIVE_DEMOS[project.slug].subtitle}
+                                </p>
+                                {(() => {
+                                    const Comp = LIVE_DEMOS[project.slug].Component;
+                                    return <Comp />;
+                                })()}
+                            </section>
+                        </FadeIn>
+                    )}
 
                     {/* Tech Stack */}
                     <FadeIn>
