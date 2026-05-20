@@ -1,0 +1,38 @@
+name: Bundle Budget
+
+on:
+  pull_request:
+    branches: [main]
+
+# Uses only secrets and the build's own stdout; no PR/issue text
+# is interpolated into shell commands.
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build with bundle analyzer
+        env:
+          ANALYZE: "true"
+        run: npm run build 2>&1 | tee build.log
+
+      - name: Enforce bundle budgets
+        run: node scripts/check-bundle-budget.mjs build.log
+
+      - name: Upload analyzer reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-analyzer-reports
+          path: .next/analyze/
+          if-no-files-found: ignore

@@ -21,8 +21,13 @@ const navLinks = [
     { name: "Contact", href: "#contact" },
 ];
 
+// Hardcoded to keep the route eligible for Cache Components / PPR
+// static prerender. `new Date()` in a Client Component is rejected by
+// Next 16's Cache Components analyser. Bump this on Jan 1 each year.
+const COPYRIGHT_YEAR = 2026;
+
 function Footer() {
-    const currentYear = new Date().getFullYear();
+    const currentYear = COPYRIGHT_YEAR;
 
     return (
         <footer className="relative border-t border-white/5 bg-dark-900/50 backdrop-blur-sm">

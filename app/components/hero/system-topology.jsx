@@ -26,10 +26,24 @@ const EDGES = [
     { id: "e-queue-worker", from: "queue", to: "worker", delay: 1.8 },
 ];
 
+// Pull stroke/fill/glow from the design-token CSS variables defined in
+// app/css/globals.scss so a single edit there theme-shifts every node.
 const ACCENT = {
-    violet: { stroke: "rgba(139, 92, 246, 0.85)", fill: "rgba(139, 92, 246, 0.08)", glow: "rgba(139, 92, 246, 0.55)" },
-    cyan: { stroke: "rgba(6, 182, 212, 0.85)", fill: "rgba(6, 182, 212, 0.08)", glow: "rgba(6, 182, 212, 0.55)" },
-    pink: { stroke: "rgba(244, 114, 182, 0.85)", fill: "rgba(244, 114, 182, 0.06)", glow: "rgba(244, 114, 182, 0.55)" },
+    violet: {
+        stroke: "var(--accent-violet-line)",
+        fill: "var(--accent-violet-fill)",
+        glow: "var(--accent-violet-glow)",
+    },
+    cyan: {
+        stroke: "var(--accent-cyan-line)",
+        fill: "var(--accent-cyan-fill)",
+        glow: "var(--accent-cyan-glow)",
+    },
+    pink: {
+        stroke: "var(--accent-pink-line)",
+        fill: "var(--accent-pink-fill)",
+        glow: "var(--accent-pink-glow)",
+    },
 };
 
 function getNode(id) {
@@ -185,7 +199,7 @@ function SystemTopology() {
                                     <circle
                                         r={node.r}
                                         fill="none"
-                                        stroke={colors.glow}
+                                        style={{ stroke: colors.glow }}
                                         strokeWidth={1}
                                         opacity={0.0}
                                     >
@@ -208,8 +222,7 @@ function SystemTopology() {
                                 {/* main node */}
                                 <circle
                                     r={node.r}
-                                    fill={colors.fill}
-                                    stroke={colors.stroke}
+                                    style={{ fill: colors.fill, stroke: colors.stroke }}
                                     strokeWidth={1.4}
                                     filter="url(#softGlow)"
                                 />

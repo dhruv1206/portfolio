@@ -1,6 +1,8 @@
 import { ImageResponse } from "@vercel/og";
 
-export const runtime = "edge";
+// Note: edge runtime would conflict with `cacheComponents: true` in
+// next.config.js (Next 16). Vercel OG runs fine on the default Node
+// runtime; cold-start is slightly higher but image quality is identical.
 
 export async function GET(request) {
     try {

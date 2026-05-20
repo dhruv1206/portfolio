@@ -15,6 +15,7 @@ const FluidCursor = dynamic(() => import("./ui/fluid-cursor"), { ssr: false });
 const TerminalOverlay = dynamic(() => import("./ui/terminal-overlay"), { ssr: false });
 const VoiceControlButton = dynamic(() => import("./ui/voice-control-button"), { ssr: false });
 const CinematicMode = dynamic(() => import("./ui/cinematic-mode"), { ssr: false });
+const ViewTransitions = dynamic(() => import("./ui/view-transitions").then((m) => m.ViewTransitions), { ssr: false });
 
 // Inner component to use hooks (must be inside providers)
 function ClientProvidersInner({ children }) {
@@ -25,6 +26,9 @@ function ClientProvidersInner({ children }) {
 
     return (
         <>
+            {/* Native View Transitions wrapper for route navigation */}
+            <ViewTransitions />
+
             {/* Loading Screen */}
             <LoadingScreen />
 

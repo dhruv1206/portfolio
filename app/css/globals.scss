@@ -13,10 +13,29 @@
     --color-border: rgba(139, 92, 246, 0.2);
     --color-border-hover: rgba(139, 92, 246, 0.5);
 
-    /* Accent */
-    --color-accent-primary: #8b5cf6;
-    --color-accent-secondary: #06b6d4;
-    --color-accent-tertiary: #f472b6;
+    /* Accent — primary tokens */
+    --color-accent-primary: #8b5cf6;     /* violet */
+    --color-accent-secondary: #06b6d4;   /* cyan */
+    --color-accent-tertiary: #f472b6;    /* pink */
+
+    /* Accent — RGB triplets, used to compose rgba() with arbitrary alpha
+       (e.g. `rgb(var(--rgb-violet) / 0.8)`) so components can dial
+       opacity without hard-coding hex/rgba in JSX. */
+    --rgb-violet: 139 92 246;
+    --rgb-cyan: 6 182 212;
+    --rgb-pink: 244 114 182;
+    --rgb-emerald: 16 185 129;
+
+    /* Accent — common alpha variants used by SystemTopology + glow-card */
+    --accent-violet-line: rgb(var(--rgb-violet) / 0.85);
+    --accent-violet-fill: rgb(var(--rgb-violet) / 0.08);
+    --accent-violet-glow: rgb(var(--rgb-violet) / 0.55);
+    --accent-cyan-line: rgb(var(--rgb-cyan) / 0.85);
+    --accent-cyan-fill: rgb(var(--rgb-cyan) / 0.08);
+    --accent-cyan-glow: rgb(var(--rgb-cyan) / 0.55);
+    --accent-pink-line: rgb(var(--rgb-pink) / 0.85);
+    --accent-pink-fill: rgb(var(--rgb-pink) / 0.06);
+    --accent-pink-glow: rgb(var(--rgb-pink) / 0.55);
 
     /* Text */
     --color-text-primary: #ffffff;
@@ -585,5 +604,42 @@ body {
     /* Page margins */
     @page {
         margin: 2cm;
+    }
+}
+
+/* ============================================
+   NATIVE VIEW TRANSITIONS (route changes)
+   Driven by app/components/ui/view-transitions.jsx
+   ============================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-fill-mode: both;
+}
+
+::view-transition-old(root) {
+    animation-name: vt-leave;
+}
+
+::view-transition-new(root) {
+    animation-name: vt-enter;
+}
+
+@keyframes vt-leave {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-8px) scale(0.992); }
+}
+
+@keyframes vt-enter {
+    0% { opacity: 0; transform: translateY(12px) scale(0.996); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: 1ms;
+        animation-name: none;
     }
 }

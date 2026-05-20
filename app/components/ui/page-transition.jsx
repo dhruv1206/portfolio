@@ -1,51 +1,12 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { usePathname } from "next/navigation";
+// Route-level page transitions live in `view-transitions.jsx` now and
+// use the native browser View Transitions API (no Framer Motion). This
+// file keeps the scroll-into-view helpers (FadeIn, SectionTransition,
+// StaggerContainer, StaggerItem, ScaleIn) which are still consumed by
+// every homepage section.
 
-/**
- * PageTransition - Smooth page transitions wrapper
- */
-const PageTransition = ({ children }) => {
-    const pathname = usePathname();
-
-    const pageVariants = {
-        initial: {
-            opacity: 0,
-            y: 20,
-        },
-        animate: {
-            opacity: 1,
-            y: 0,
-            transition: {
-                duration: 0.5,
-                ease: [0.4, 0, 0.2, 1],
-            },
-        },
-        exit: {
-            opacity: 0,
-            y: -20,
-            transition: {
-                duration: 0.3,
-                ease: [0.4, 0, 0.2, 1],
-            },
-        },
-    };
-
-    return (
-        <AnimatePresence mode="wait">
-            <motion.div
-                key={pathname}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-            >
-                {children}
-            </motion.div>
-        </AnimatePresence>
-    );
-};
+import { motion } from "framer-motion";
 
 /**
  * SectionTransition - Animated section wrapper
@@ -184,4 +145,3 @@ export const ScaleIn = ({ children, className = "", delay = 0 }) => {
     );
 };
 
-export default PageTransition;
