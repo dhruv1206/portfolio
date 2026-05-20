@@ -47,16 +47,12 @@ const nextConfig = {
         optimizePackageImports: ["framer-motion", "react-icons"],
     },
 
-    // Cache Components (formerly PPR / experimental.cacheComponents in
-    // Next 15) is the right end-state but its Next 16 incarnation is far
-    // stricter than the plan anticipated — every Client Component touching
-    // dynamic values (e.g. params, new Date(), uncached fetch) needs an
-    // explicit Suspense boundary above it. Enabling it triggered
-    // build-blocking errors in: Footer (new Date), /api/og (edge runtime
-    // incompatibility), /blog/[slug] (dynamic params), and the
-    // ClientProviders tree. Deferred to Phase 5 polish when the
-    // server/client component split can be refactored cleanly.
-    // cacheComponents: true,
+    // Cache Components (formerly PPR / `experimental.ppr` in Next 15).
+    // Strict mode: every dynamic-value access (params, fetch, Date,
+    // localStorage…) must sit under a Suspense boundary. We comply by
+    // wrapping route content in Suspense at the page level and isolating
+    // client-only providers below the route.
+    cacheComponents: true,
 
     // Compiler options for production
     compiler: {

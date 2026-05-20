@@ -46,6 +46,7 @@ function AboutSection() {
                                         src={personalData.profile}
                                         alt="Dhruv Agrawal"
                                         fill
+                                        sizes="(min-width: 768px) 320px, 280px"
                                         className="object-cover transition-all duration-700 grayscale hover:grayscale-0 hover:scale-105"
                                         priority
                                     />
