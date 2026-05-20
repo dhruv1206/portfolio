@@ -8,14 +8,17 @@
 // Per particle (32-byte stride):
 //   pos: vec2<f32>      (px, y down)
 //   vel: vec2<f32>      (px/sec)
-//   target: vec2<f32>   (px; rest position; springK=0 disables)
+//   goal: vec2<f32>     (px; rest position; springK=0 disables)
 //   age: f32            (sec)
 //   _pad: f32           (alignment)
+//
+// Field is `goal` not `target` — `target` is a WGSL reserved keyword
+// (rejected by Dawn / Chrome's WGSL compiler).
 
 struct Particle {
     pos: vec2<f32>,
     vel: vec2<f32>,
-    target: vec2<f32>,
+    goal: vec2<f32>,
     age: f32,
     _pad: f32,
 }
@@ -74,9 +77,9 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     var force = vec2<f32>(0.0, 0.0);
 
-    // Spring toward target.
+    // Spring toward rest position.
     if (sim.springK > 0.0) {
-        force = force + (p.target - p.pos) * sim.springK;
+        force = force + (p.goal - p.pos) * sim.springK;
     }
 
     // Curl-noise flow.
@@ -154,13 +157,13 @@ fn vs_main(@builtin(vertex_index) vi: u32, in: VSIn) -> VSOut {
     out.position = vec4<f32>(ndc.x, -ndc.y, 0.0, 1.0);
     out.uv = local;
 
-    // Violet -> cyan ramp on speed, with a brightness boost so additive
-    // blending against a near-black background still reads.
+    // Violet -> cyan ramp on speed, brightness-multiplied so additive
+    // blending against a near-black background reads as a real glow.
     let speed = length(in.vel);
     let intensity = clamp(speed / 180.0, 0.0, 1.0);
     let violet = vec3<f32>(0.545, 0.361, 0.965); // #8b5cf6
     let cyan   = vec3<f32>(0.024, 0.714, 0.831); // #06b6d4
-    let rgb = mix(violet, cyan, intensity) * 1.4;
+    let rgb = mix(violet, cyan, intensity) * 2.0;
     out.color = vec4<f32>(rgb, 1.0);
     return out;
 }

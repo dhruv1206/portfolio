@@ -27,7 +27,7 @@ const MOUSE_RADIUS = 220; // pixels (CSS), scaled by DPR before posting
  */
 export default function ParticleHeroWebGPU() {
     const mounted = useMounted();
-    const support = useWebGPUSupport();
+    const { isChecking, hasWebGPU, hasWebGL2 } = useWebGPUSupport();
     const reduced = usePrefersReducedMotion();
 
     const containerRef = useRef(null);
@@ -38,11 +38,13 @@ export default function ParticleHeroWebGPU() {
 
     useEffect(() => {
         if (!mounted) return undefined;
-        if (support.isChecking) return undefined;
+        if (isChecking) return undefined;
         const container = containerRef.current;
         const setRenderer = (value) => {
             container?.setAttribute("data-renderer", value);
+            console.log("[particles] renderer =", value);
         };
+        console.log("[particles] mount", { hasWebGPU, hasWebGL2, reduced });
         if (reduced) {
             setRenderer("static");
             return undefined;
@@ -64,6 +66,11 @@ export default function ParticleHeroWebGPU() {
         // ---------- WebGPU branch ----------
         async function tryWebGPU() {
             try {
+                console.log("[particles] try WebGPU; container =", {
+                    w: container.clientWidth,
+                    h: container.clientHeight,
+                    devicePR: dpr,
+                });
                 const response = await fetch("/shaders/particles.wgsl");
                 if (!response.ok) throw new Error("shader fetch " + response.status);
                 const shaderCode = await response.text();
@@ -260,7 +267,7 @@ export default function ParticleHeroWebGPU() {
         }
 
         // ---------- Dispatch ----------
-        if (support.hasWebGPU) {
+        if (hasWebGPU) {
             tryWebGPU().then((ok) => {
                 if (!ok && !disposed) runCanvas2D();
             });
@@ -273,7 +280,7 @@ export default function ParticleHeroWebGPU() {
             cleanupRef.current?.();
             cleanupRef.current = () => {};
         };
-    }, [mounted, support.isChecking, support.hasWebGPU, reduced]);
+    }, [mounted, isChecking, hasWebGPU, hasWebGL2, reduced]);
 
     return (
         <div

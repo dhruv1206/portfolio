@@ -35,31 +35,35 @@ let mouseX = -10000;
 let mouseY = -10000;
 let mouseRadius = 0;
 
-// Simulation tuning.
+// Simulation tuning. Tuned aggressively while bringing the layer in;
+// we can dial these back once the particle field is reliably visible
+// against the hero's near-black background.
 const config = {
     mouseForce: 320000, // px/s² peak inside the radius
     springK: 0,         // 0 = pure ambient flow (text-formation reserved for later)
     damping: 0.93,
-    particleSize: 2.6,  // half-extent in device px; ~5px visible diameter at dpr=2
-    flowStrength: 22,
+    particleSize: 4.0,  // half-extent in device px; ~8px visible diameter at dpr=2
+    flowStrength: 28,
 };
 
 function postError(message) {
     self.postMessage({ type: "error", error: message });
 }
 
-function makeParticleBuffer(targets) {
+function makeParticleBuffer(goals) {
     const f32 = new Float32Array((particleCount * PARTICLE_BYTES) / 4);
     for (let i = 0; i < particleCount; i++) {
         const base = i * 8;
-        const tx = targets ? targets[i * 2] : width / 2;
-        const ty = targets ? targets[i * 2 + 1] : height / 2;
+        // `goal` (was named "target" before, but that's a WGSL reserved
+        // keyword — see particles.wgsl).
+        const gx = goals ? goals[i * 2] : width / 2;
+        const gy = goals ? goals[i * 2 + 1] : height / 2;
         f32[base + 0] = Math.random() * width;
         f32[base + 1] = Math.random() * height;
         f32[base + 2] = (Math.random() - 0.5) * 40;
         f32[base + 3] = (Math.random() - 0.5) * 40;
-        f32[base + 4] = tx;
-        f32[base + 5] = ty;
+        f32[base + 4] = gx;
+        f32[base + 5] = gy;
         f32[base + 6] = 0;
         f32[base + 7] = 0;
     }
@@ -141,7 +145,7 @@ async function init({
     width: w,
     height: h,
     shaderCode,
-    targets,
+    targets, // legacy name retained for the postMessage API
 }) {
     canvas = offscreen;
     particleCount = count;
@@ -169,7 +173,21 @@ async function init({
     format = self.navigator.gpu.getPreferredCanvasFormat();
     context.configure({ device, format, alphaMode: "premultiplied" });
 
+    // Wrap pipeline creation in an error scope so a WGSL compile failure
+    // surfaces as a rejected init() instead of an invisible cascade of
+    // invalid-pipeline + invalid-command-buffer messages every frame.
+    device.pushErrorScope("validation");
     const shaderModule = device.createShaderModule({ code: shaderCode });
+    // compilationInfo() returns the parser's diagnostics — far more
+    // helpful than the catch-all "validation failed" we'd get otherwise.
+    const compInfo = await shaderModule.getCompilationInfo();
+    const fatal = compInfo.messages.find((m) => m.type === "error");
+    if (fatal) {
+        device.popErrorScope().catch(() => {});
+        throw new Error(
+            `WGSL compile error: ${fatal.message} (line ${fatal.lineNum})`,
+        );
+    }
 
     // Buffers
     particleBuffer = device.createBuffer({
@@ -243,6 +261,13 @@ async function init({
         layout: renderPipeline.getBindGroupLayout(0),
         entries: [{ binding: 0, resource: { buffer: renderUniformBuffer } }],
     });
+
+    // Close the validation error scope. If anything in pipeline creation
+    // produced a validation error, throw so the wrapper can fall back.
+    const validationError = await device.popErrorScope();
+    if (validationError) {
+        throw new Error(`WebGPU validation: ${validationError.message}`);
+    }
 
     startTime = performance.now();
     lastFrameTime = startTime;
