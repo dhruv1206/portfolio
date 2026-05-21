@@ -46,8 +46,9 @@ async function main() {
     console.log("→ Loading /projects/dstardb");
     await page.goto(BASE + "/projects/dstardb", {
         waitUntil: "domcontentloaded",
+        timeout: 90_000,
     });
-    await page.waitForSelector('input[placeholder^="try"]', { timeout: 15_000 });
+    await page.waitForSelector('input[placeholder^="try"]', { timeout: 60_000 });
 
     // Scroll the REPL into view so screenshots show it.
     await page

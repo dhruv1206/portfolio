@@ -23,6 +23,10 @@ const WebRTCDemo = dynamic(
     () => import("@/app/components/case-study/webrtc-demo"),
     { ssr: false },
 );
+const PressReleasePipeline = dynamic(
+    () => import("@/app/components/case-study/press-release-pipeline"),
+    { ssr: false },
+);
 
 const LIVE_DEMOS = {
     dstardb: {
@@ -34,8 +38,14 @@ const LIVE_DEMOS = {
     "realtime-collaboration": {
         title: "Open a real-time room",
         subtitle:
-            "A real RTCPeerConnection negotiated in your browser. Open this page in a second tab and the two tabs auto-pair over BroadcastChannel — otherwise the demo connects to a synthetic peer over loopback. Either way, the video, RTT, and bitrate stats below are coming from the real WebRTC stack.",
+            "A real RTCPeerConnection negotiated in your browser. Create a room, share the link, and the other peer can join from anywhere. Loopback mode pairs you with a synthetic peer when you're solo. Either way, the video, RTT, and bitrate stats below are coming from the real WebRTC stack.",
         Component: WebRTCDemo,
+    },
+    "ai-press-release-generator": {
+        title: "Run the press-release pipeline",
+        subtitle:
+            "Same shape as the production Flask service: ingest → summarize → translate across 10 Indian languages → text-to-speech → compose a slide-based video with zoom + blur + fade. Translation is proxied through MyMemory (Google Translate in prod), speech uses Web Speech (gTTS in prod), and the MP4 timeline is painted live on Canvas (MoviePy in prod).",
+        Component: PressReleasePipeline,
     },
 };
 

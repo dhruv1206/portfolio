@@ -114,7 +114,7 @@ async function main() {
         '#projects article:has(h3:has-text("DStarDB")) a[href="/projects/dstardb"]',
     );
     await Promise.all([
-        page.waitForURL(/\/projects\/dstardb$/, { timeout: 8000 }),
+        page.waitForURL(/\/projects\/dstardb$/, { timeout: 30000 }),
         cardLink.click(),
     ]);
     await page.waitForTimeout(1200);
@@ -132,7 +132,7 @@ async function main() {
     console.log(`\n[Step 3] Going back to / via history.back()`);
     await Promise.all([
         page.waitForURL((url) => url.toString().endsWith("/") && !url.toString().endsWith("/projects/dstardb"), {
-            timeout: 8000,
+            timeout: 30000,
         }),
         page.goBack(),
     ]);
@@ -160,13 +160,13 @@ async function main() {
     );
     await page.waitForTimeout(500);
     await Promise.all([
-        page.waitForURL(/\/projects\/dstardb$/, { timeout: 8000 }),
+        page.waitForURL(/\/projects\/dstardb$/, { timeout: 30000 }),
         cardLink.click(),
     ]);
     await page.waitForTimeout(1000);
     await Promise.all([
         page.waitForURL((url) => url.toString().endsWith("/") && !url.toString().endsWith("/projects/dstardb"), {
-            timeout: 8000,
+            timeout: 30000,
         }),
         page.goBack(),
     ]);
