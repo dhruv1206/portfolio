@@ -38,7 +38,7 @@ async function waitForStageState(page, stageLabel, targetClassFragment, timeoutM
             ({ stageLabel, frag }) => {
                 const items = Array.from(
                     document.querySelectorAll(
-                        ".press-release-pipeline ol li",
+                        "[data-cinema-mode=\"desktop\"] .press-release-pipeline ol li",
                     ),
                 );
                 for (const li of items) {
@@ -82,35 +82,35 @@ async function main() {
         waitUntil: "domcontentloaded",
         timeout: 90_000,
     });
-    await page.waitForSelector(".press-release-pipeline", {
+    await page.waitForSelector("[data-cinema-mode=\"desktop\"] .press-release-pipeline", {
         state: "attached",
         timeout: 60_000,
     });
     await page
-        .locator(".press-release-pipeline")
+        .locator("[data-cinema-mode=\"desktop\"] .press-release-pipeline")
         .scrollIntoViewIfNeeded()
         .catch(() => {});
-    await page.waitForSelector(".press-release-pipeline", { timeout: 20_000 });
+    await page.waitForSelector("[data-cinema-mode=\"desktop\"] .press-release-pipeline", { timeout: 20_000 });
     await page
-        .locator(".press-release-pipeline")
+        .locator("[data-cinema-mode=\"desktop\"] .press-release-pipeline")
         .scrollIntoViewIfNeeded()
         .catch(() => {});
 
     record(
         "pipeline card mounted",
-        await page.locator(".press-release-pipeline").isVisible(),
+        await page.locator("[data-cinema-mode=\"desktop\"] .press-release-pipeline").isVisible(),
     );
     record(
         "stage list shows all 6 stages",
         (await page
-            .locator(".press-release-pipeline ol li")
+            .locator("[data-cinema-mode=\"desktop\"] .press-release-pipeline ol li")
             .count()) === 6,
-        `count=${await page.locator(".press-release-pipeline ol li").count()}`,
+        `count=${await page.locator("[data-cinema-mode=\"desktop\"] .press-release-pipeline ol li").count()}`,
     );
 
     console.log("\n→ Clicking Run pipeline");
     await page
-        .locator(".press-release-pipeline button", { hasText: /Run pipeline/i })
+        .locator("[data-cinema-mode=\"desktop\"] .press-release-pipeline button", { hasText: /Run pipeline/i })
         .click();
 
     // Ingest + summarize should land quickly (sync).
@@ -141,7 +141,7 @@ async function main() {
 
     const translationCount = await page.evaluate(() => {
         return document.querySelectorAll(
-            ".press-release-pipeline .grid > div",
+            "[data-cinema-mode=\"desktop\"] .press-release-pipeline .grid > div",
         ).length;
     });
     record(
@@ -169,7 +169,7 @@ async function main() {
 
     // Canvas has non-trivial pixel variance (something was drawn).
     const pixelVariance = await page.evaluate(() => {
-        const c = document.querySelector(".press-release-pipeline canvas");
+        const c = document.querySelector("[data-cinema-mode=\"desktop\"] .press-release-pipeline canvas");
         if (!c) return null;
         const off = new OffscreenCanvas(c.width, c.height);
         const cx = off.getContext("2d");
@@ -199,7 +199,7 @@ async function main() {
 
     // Distribute output panel surfaced.
     const distributeText = await page
-        .locator(".press-release-pipeline")
+        .locator("[data-cinema-mode=\"desktop\"] .press-release-pipeline")
         .innerText();
     record(
         "distribute panel shows simulated upload URLs",

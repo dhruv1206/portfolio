@@ -18,7 +18,9 @@ function record(name, pass, detail = "") {
 }
 
 async function typeCmd(page, line) {
-    const input = page.locator('input[placeholder^="try"]').last();
+    const input = page
+        .locator('[data-cinema-mode="desktop"] input[placeholder^="try"]')
+        .last();
     await input.fill(line);
     await input.press("Enter");
     await page.waitForTimeout(120);
@@ -26,7 +28,7 @@ async function typeCmd(page, line) {
 
 async function lastResultText(page) {
     return await page
-        .locator("div.font-mono > div")
+        .locator('[data-cinema-mode="desktop"] .dstardb-repl div.font-mono > div')
         .last()
         .innerText();
 }
@@ -48,11 +50,24 @@ async function main() {
         waitUntil: "domcontentloaded",
         timeout: 90_000,
     });
-    await page.waitForSelector('input[placeholder^="try"]', { timeout: 60_000 });
+    // The REPL now lives in the last chapter of the scroll cinema.
+    // Target the DESKTOP scrollytelling tree explicitly — the cinema
+    // mounts BOTH a `lg:hidden` mobile fallback AND the desktop view
+    // in the DOM at the same time, and Playwright's auto-wait would
+    // otherwise pick the (hidden) mobile copy.
+    const desktopRepl = page
+        .locator('[data-cinema-mode="desktop"] .dstardb-repl')
+        .first();
+    await desktopRepl.waitFor({ state: "attached", timeout: 60_000 });
+    await desktopRepl.scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForSelector(
+        '[data-cinema-mode="desktop"] input[placeholder^="try"]',
+        { timeout: 60_000 },
+    );
 
-    // Scroll the REPL into view so screenshots show it.
+    // Scroll the (desktop scrollytelling) REPL into view for typing.
     await page
-        .locator(".dstardb-repl")
+        .locator('[data-cinema-mode="desktop"] .dstardb-repl')
         .scrollIntoViewIfNeeded()
         .catch(() => {});
 
@@ -131,7 +146,9 @@ async function main() {
     );
 
     // Take a screenshot scoped to the REPL.
-    await page.locator(".dstardb-repl").scrollIntoViewIfNeeded();
+    await page
+        .locator('[data-cinema-mode="desktop"] .dstardb-repl')
+        .scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${OUT}/dstardb-repl.png`, fullPage: false });
 
     console.log("\n--- Summary ---");

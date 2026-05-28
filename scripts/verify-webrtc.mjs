@@ -46,7 +46,7 @@ async function waitForConnectionState(page, target, timeoutMs = 25_000) {
                 "disconnected",
                 "closed",
             ];
-            for (const span of document.querySelectorAll(".webrtc-demo span")) {
+            for (const span of document.querySelectorAll("[data-cinema-mode=\"desktop\"] .webrtc-demo span")) {
                 const t = span.textContent?.trim() || "";
                 if (candidates.includes(t)) return t;
             }
@@ -72,15 +72,15 @@ async function openTab(browser, queryString = "") {
     });
     const url = BASE + "/projects/realtime-collaboration" + queryString;
     await page.goto(url, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector(".webrtc-demo", { timeout: 20_000 });
-    await page.locator(".webrtc-demo").scrollIntoViewIfNeeded();
+    await page.waitForSelector("[data-cinema-mode=\"desktop\"] .webrtc-demo", { timeout: 20_000 });
+    await page.locator("[data-cinema-mode=\"desktop\"] .webrtc-demo").scrollIntoViewIfNeeded();
     return { ctx, page, errors };
 }
 
 async function clickJoin(page) {
-    // The "Join" button lives inside .webrtc-demo (pre-join form footer).
+    // The "Join" button lives inside [data-cinema-mode="desktop"] .webrtc-demo (pre-join form footer).
     await page
-        .locator(".webrtc-demo button", { hasText: /^Join$/ })
+        .locator("[data-cinema-mode=\"desktop\"] .webrtc-demo button", { hasText: /^Join$/ })
         .click();
 }
 
@@ -108,7 +108,7 @@ async function main() {
     // default, NOT camera. (Previous behavior auto-grabbed the camera
     // and broke same-laptop dual-tab demos with frozen frames.)
     const cameraButtonText = await tabA.page
-        .locator(".webrtc-demo button", { hasText: /camera/i })
+        .locator("[data-cinema-mode=\"desktop\"] .webrtc-demo button", { hasText: /camera/i })
         .first()
         .innerText();
     record(
@@ -117,11 +117,11 @@ async function main() {
         `button="${cameraButtonText}"`,
     );
 
-    await tabA.page.locator(".webrtc-demo input").last().fill("hello loop");
-    await tabA.page.locator(".webrtc-demo input").last().press("Enter");
+    await tabA.page.locator("[data-cinema-mode=\"desktop\"] .webrtc-demo input").last().fill("hello loop");
+    await tabA.page.locator("[data-cinema-mode=\"desktop\"] .webrtc-demo input").last().press("Enter");
     await tabA.page.waitForTimeout(600);
     const sawEcho = await tabA.page
-        .locator(".webrtc-demo")
+        .locator("[data-cinema-mode=\"desktop\"] .webrtc-demo")
         .innerText()
         .then((t) => /echo: hello loop/.test(t))
         .catch(() => false);
@@ -129,9 +129,9 @@ async function main() {
 
     // Chat panel layout — confirm it lives below the videos (not in a
     // squeezed sidebar). The chat scroll area should be at LEAST as
-    // wide as the parent .webrtc-demo content, no longer clipped.
+    // wide as the parent [data-cinema-mode="desktop"] .webrtc-demo content, no longer clipped.
     const chatGeometry = await tabA.page.evaluate(() => {
-        const demo = document.querySelector(".webrtc-demo");
+        const demo = document.querySelector("[data-cinema-mode=\"desktop\"] .webrtc-demo");
         const chat = demo?.querySelector(
             "div.max-h-\\[220px\\], div[class*='max-h-[220px]']",
         );
@@ -170,11 +170,11 @@ async function main() {
 
     // Each tab's form should be pre-filled from the URL — confirm:
     const aFilled = await ctxA.page
-        .locator(".webrtc-demo input")
+        .locator("[data-cinema-mode=\"desktop\"] .webrtc-demo input")
         .first()
         .inputValue();
     const bFilled = await ctxB.page
-        .locator(".webrtc-demo input")
+        .locator("[data-cinema-mode=\"desktop\"] .webrtc-demo input")
         .first()
         .inputValue();
     record(
@@ -204,11 +204,11 @@ async function main() {
     );
 
     // Confirm chat goes through the established DataChannel.
-    await ctxA.page.locator(".webrtc-demo input").last().fill("ping from A");
-    await ctxA.page.locator(".webrtc-demo input").last().press("Enter");
+    await ctxA.page.locator("[data-cinema-mode=\"desktop\"] .webrtc-demo input").last().fill("ping from A");
+    await ctxA.page.locator("[data-cinema-mode=\"desktop\"] .webrtc-demo input").last().press("Enter");
     await ctxB.page.waitForTimeout(900);
     const bSawA = await ctxB.page
-        .locator(".webrtc-demo")
+        .locator("[data-cinema-mode=\"desktop\"] .webrtc-demo")
         .innerText()
         .then((t) => /ping from A/.test(t))
         .catch(() => false);
@@ -244,7 +244,7 @@ async function main() {
     await clickJoin(ctxIntruder.page);
     await ctxIntruder.page.waitForTimeout(1500);
     const intruderError = await ctxIntruder.page
-        .locator(".webrtc-demo")
+        .locator("[data-cinema-mode=\"desktop\"] .webrtc-demo")
         .innerText()
         .then((t) => /Wrong password/i.test(t))
         .catch(() => false);
