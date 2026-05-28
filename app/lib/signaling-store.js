@@ -263,11 +263,9 @@ export function getStore() {
     const url = process.env.UPSTASH_REDIS_REST_URL;
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;
     if (url && token) {
-        // eslint-disable-next-line no-console
         console.log("[signaling] using Upstash Redis store");
         storeInstance = new UpstashStore(url, token);
     } else {
-        // eslint-disable-next-line no-console
         console.warn(
             "[signaling] UPSTASH_REDIS_REST_URL/_TOKEN not set — using " +
                 "in-memory store. Cross-device rooms only work locally " +

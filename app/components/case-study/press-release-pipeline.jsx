@@ -93,9 +93,69 @@ function pickVoice(bcp47) {
     );
 }
 
-async function speak(text, voice, lang) {
+// Google-TTS endpoint caps each chunk at 200 chars; split at word
+// boundaries so prosody doesn't break mid-word.
+function splitForTts(text, maxChars = 180) {
+    if (text.length <= maxChars) return [text];
+    const chunks = [];
+    let buf = "";
+    for (const word of text.split(/\s+/).filter(Boolean)) {
+        const next = buf ? buf + " " + word : word;
+        if (next.length > maxChars && buf) {
+            chunks.push(buf);
+            buf = word;
+        } else {
+            buf = next;
+        }
+    }
+    if (buf) chunks.push(buf);
+    return chunks;
+}
+
+async function playGoogleTtsChunk(text, lang, idx, total) {
+    const url =
+        `/api/tts?q=${encodeURIComponent(text)}` +
+        `&tl=${encodeURIComponent(lang)}` +
+        `&idx=${idx}&total=${total}&textlen=${text.length}`;
+    // Probe before playing so a failed proxy can short-circuit cleanly
+    // back to the Web Speech fallback (HEAD isn't supported by the
+    // upstream, so do a tiny GET range).
+    const probe = await fetch(url, { method: "GET" });
+    if (!probe.ok) {
+        let err;
+        try {
+            err = (await probe.json())?.error;
+        } catch {
+            err = `http ${probe.status}`;
+        }
+        throw new Error(err || `http ${probe.status}`);
+    }
+    const blob = await probe.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+        const audio = new Audio(objectUrl);
+        await new Promise((resolve, reject) => {
+            audio.onended = () => resolve();
+            audio.onerror = () => reject(new Error("audio-play-failed"));
+            audio.play().catch(reject);
+        });
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+async function speakViaGoogleTts(text, lang) {
+    const chunks = splitForTts(text);
+    for (let i = 0; i < chunks.length; i++) {
+        await playGoogleTtsChunk(chunks[i], lang, i, chunks.length);
+    }
+}
+
+// Browser-native fallback used when the gTTS proxy fails (rate-limited,
+// network blocked, etc.). Voice quality is whatever the OS ships.
+function speakViaWebSpeech(text, voice, lang) {
     if (typeof window === "undefined" || !window.speechSynthesis) {
-        return { skipped: true, reason: "no speech synthesis" };
+        return Promise.resolve({ skipped: true, reason: "no speech synthesis" });
     }
     return new Promise((resolve) => {
         const u = new SpeechSynthesisUtterance(text);
@@ -107,18 +167,45 @@ async function speak(text, voice, lang) {
             resolve({
                 durationMs: Math.round(performance.now() - t0),
                 voiceName: voice?.name || "default",
+                source: "web-speech",
                 skipped: false,
             });
         u.onerror = (e) =>
             resolve({
                 durationMs: Math.round(performance.now() - t0),
                 voiceName: voice?.name || "default",
+                source: "web-speech",
                 skipped: true,
                 reason: e?.error || "speech-error",
             });
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
     });
+}
+
+// Mirrors the production gTTS path. Browser pulls MP3 audio per chunk
+// from our `/api/tts` proxy (which hits Google's TTS endpoint with a
+// browser-like UA, just like the Python `gtts` library does on the
+// server). Falls back to Web Speech if the proxy is unreachable.
+async function speak(text, voice, lang) {
+    const shortLang = (lang || "en").split("-")[0];
+    const t0 = performance.now();
+    try {
+        await speakViaGoogleTts(text, shortLang);
+        return {
+            durationMs: Math.round(performance.now() - t0),
+            voiceName: `gTTS · ${shortLang}`,
+            source: "google-tts",
+            skipped: false,
+        };
+    } catch (err) {
+        console.warn(
+            "[pr-pipeline] gTTS proxy failed, falling back to Web Speech:",
+            err?.message || err,
+        );
+        const fallback = await speakViaWebSpeech(text, voice, lang);
+        return { ...fallback, fallbackReason: String(err?.message || err) };
+    }
 }
 
 // ---------- Compose stage: slide carousel on Canvas ----------
@@ -447,7 +534,7 @@ export default function PressReleasePipeline() {
         const voice = pickVoice(langCfg.bcp47);
         setStage("tts", {
             status: STAGE_STATUS.RUNNING,
-            detail: `voice=${voice?.name || "none-local"} · lang=${langCfg.bcp47}`,
+            detail: `gTTS proxy → ${langCfg.bcp47} (fallback: Web Speech · ${voice?.name || "no-local-voice"})`,
         });
 
         // ---- 5. Compose (canvas slideshow, kicked off concurrently with TTS) ----

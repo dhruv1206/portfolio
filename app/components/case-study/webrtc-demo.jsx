@@ -4,6 +4,7 @@ import {
     forwardRef,
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -206,7 +207,6 @@ export default function WebRTCDemo() {
     const [passwordInput, setPasswordInput] = useState(
         () => searchParams?.get("pw") || "",
     );
-    const [shareUrl, setShareUrl] = useState("");
     const [shareCopied, setShareCopied] = useState(false);
 
     // Refs
@@ -234,12 +234,12 @@ export default function WebRTCDemo() {
         setMessages((prev) => [...prev, { who, text, ts: Date.now() }]);
     }, []);
 
-    // ---------- Build the share URL when room+pw inputs change ----------
-    useEffect(() => {
-        if (roomConnectionMode !== "room" || !roomIdInput) {
-            setShareUrl("");
-            return;
-        }
+    // ---------- Derived share URL ----------
+    // Pure derivation from the form inputs — no effect, no state.
+    // The empty-string case (loopback mode or no room id) is what the
+    // PreJoinForm checks before rendering the share panel.
+    const shareUrl = useMemo(() => {
+        if (roomConnectionMode !== "room" || !roomIdInput) return "";
         const base =
             typeof window !== "undefined"
                 ? `${window.location.origin}/projects/realtime-collaboration`
@@ -247,7 +247,7 @@ export default function WebRTCDemo() {
         const params = new URLSearchParams();
         params.set("room", roomIdInput);
         if (passwordInput) params.set("pw", passwordInput);
-        setShareUrl(`${base}?${params.toString()}`);
+        return `${base}?${params.toString()}`;
     }, [roomIdInput, passwordInput, roomConnectionMode]);
 
     // ---------- Cleanup ----------
@@ -489,6 +489,11 @@ export default function WebRTCDemo() {
         } catch (e) {
             setError(`Loopback negotiation failed: ${e?.message || e}`);
         }
+        // wireDataChannel is a plain inner function whose behaviour
+        // depends only on `log` (already in deps) + refs. Including it
+        // here would force this callback to re-create every render
+        // for no behavioural change, so the deps array is intentional.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [createInitialLocalStream, buildLocalPeerConnection, log]);
 
     // ---------- Room mode ----------
@@ -581,6 +586,12 @@ export default function WebRTCDemo() {
         // 4. Start the long-poll loop.
         pollLoopActiveRef.current = true;
         startPollLoop(pc);
+        // postSignal / sendOffer / startPollLoop are plain inner
+        // functions whose behaviour depends only on refs + the
+        // already-listed callbacks. Including them would force this
+        // callback to re-create on every render with no behavioural
+        // change.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         createInitialLocalStream,
         buildLocalPeerConnection,
