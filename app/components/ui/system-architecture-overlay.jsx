@@ -238,20 +238,25 @@ function OverlayPanel({ active, onClose, reduced }) {
                 <div className="p-4 bg-[#06061a]/80">
                     <SystemGraph active={active} />
                 </div>
-                <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/5 bg-black/40 font-mono text-[11px] text-gray-500 flex-wrap">
+                <div className="flex flex-col gap-2 px-4 py-3 border-t border-white/5 bg-black/40 font-mono text-[11px] text-gray-500">
                     <span>
                         edges PULSE in real time as the matching event
-                        fires. try scrolling, hovering toward a project
-                        card, or clicking the mic — watch the path
-                        animate.
+                        fires. try scrolling, hovering a project card,
+                        or clicking the mic. or — fire one manually:
                     </span>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-3 py-1.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20"
-                    >
-                        Close (Esc)
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <DemoButton event="voice:intent" label="voice:intent" color="text-violet-300" />
+                        <DemoButton event="io:enter" label="io:enter" color="text-cyan-300" />
+                        <DemoButton event="audio:section-change" label="audio:section-change" color="text-pink-300" />
+                        <DemoButton event="prefetch:queued" label="prefetch:queued" color="text-amber-300" />
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="ml-auto px-3 py-1.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20"
+                        >
+                            Close (Esc)
+                        </button>
+                    </div>
                 </div>
             </motion.div>
         </motion.div>
@@ -370,6 +375,22 @@ function SystemGraph({ active }) {
                 })}
             </svg>
         </div>
+    );
+}
+
+function DemoButton({ event, label, color }) {
+    return (
+        <button
+            type="button"
+            data-demo-emit={event}
+            onClick={() => eventBus.emit(event, { source: "demo" })}
+            className={
+                "px-2 py-1 rounded border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/30 transition-colors " +
+                color
+            }
+        >
+            ▸ fire {label}
+        </button>
     );
 }
 

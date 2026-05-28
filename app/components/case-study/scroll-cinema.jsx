@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import AnimatedArchitecture from "./animated-architecture";
+import { eventBus } from "@/app/lib/event-bus";
 
 // ScrollCinema — chapter-driven scrollytelling.
 //
@@ -60,6 +61,15 @@ export default function ScrollCinema({
                 for (const e of entries) {
                     const idx = Number(e.target.dataset.chapterIdx);
                     ratios.set(idx, e.isIntersecting ? e.intersectionRatio : 0);
+                    // Also surface to the system-architecture overlay
+                    // so its IO-scheduler edge pulses when chapters
+                    // scroll into view.
+                    if (e.isIntersecting) {
+                        eventBus.emit("io:enter", {
+                            target: "section",
+                            id: e.target.dataset.chapterId || `chapter-${idx}`,
+                        });
+                    }
                 }
                 let bestIdx = 0;
                 let bestRatio = -1;

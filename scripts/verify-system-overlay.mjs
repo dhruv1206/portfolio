@@ -201,6 +201,40 @@ async function main() {
         (await page.locator("[data-system-overlay-toggle]").count()) === 1,
     );
 
+    // 11. ClientEventBridge fires `io:enter` naturally when [id]
+    // sections enter the viewport. Open the overlay, scroll, and
+    // confirm at least one edge that's NOT directly triggered by us
+    // pulses (edge e3 = browser → io-scheduler).
+    await page.evaluate(() => {
+        document.querySelector("[data-system-overlay-toggle]")?.click();
+    });
+    await page.waitForSelector('[data-system-overlay="open"]', {
+        timeout: 5_000,
+    });
+    // Cinema chapters have ids → IO bridge emits io:enter as they
+    // come into view. Scroll the page to trigger them.
+    let bridgeFired = false;
+    for (let i = 0; i < 6 && !bridgeFired; i++) {
+        await page.evaluate((y) => window.scrollTo(0, y), 400 + i * 700);
+        await page.waitForTimeout(250);
+        const e3 = await page.evaluate(() => {
+            const g = document.querySelector('[data-edge="e3"]');
+            return g?.getAttribute("data-active");
+        });
+        if (e3 === "1") bridgeFired = true;
+    }
+    record("ClientEventBridge fires io:enter naturally on scroll", bridgeFired);
+
+    // 12. Demo trigger buttons inside the overlay panel fire events.
+    await page.evaluate(() =>
+        document.querySelector('[data-demo-emit="voice:intent"]')?.click(),
+    );
+    await page.waitForTimeout(150);
+    const demoFired = await page.evaluate(
+        () => document.querySelector('[data-edge="e1"]')?.getAttribute("data-active") === "1",
+    );
+    record("in-panel demo button fires the matching event", demoFired);
+
     console.log("\n--- Summary ---");
     const failed = checks.filter((c) => !c.pass).length;
     console.log(`Passed: ${checks.length - failed}/${checks.length}`);

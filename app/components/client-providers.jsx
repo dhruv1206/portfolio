@@ -21,6 +21,10 @@ const SystemArchitectureOverlay = dynamic(
     () => import("./ui/system-architecture-overlay"),
     { ssr: false },
 );
+const ClientEventBridge = dynamic(
+    () => import("./ui/client-event-bridge"),
+    { ssr: false },
+);
 
 // Inner component to use hooks (must be inside providers)
 function ClientProvidersInner({ children }) {
@@ -72,6 +76,13 @@ function ClientProvidersInner({ children }) {
                 toggle: floating chevron icon → full-screen system
                 graph with live event edges. */}
             <SystemArchitectureOverlay />
+
+            {/* Bridges natural DOM behaviour (hover on internal
+                links, intersection of [id] sections) into the same
+                event bus the overlay subscribes to. Means real
+                scrolling + hovering produces visible edge pulses
+                without per-feature instrumentation. */}
+            <ClientEventBridge />
 
             {children}
         </>
