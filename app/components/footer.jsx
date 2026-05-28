@@ -123,6 +123,18 @@ function Footer() {
                         & Next.js
                     </p>
                 </div>
+
+                {/* Subtle discoverable hint for the live perf HUD —
+                    the closing argument of the backend-craft thesis:
+                    "the site I'm asking you to trust me to build is
+                    itself the proof." */}
+                <p className="mt-3 text-center text-[11px] text-gray-600 font-mono">
+                    press{" "}
+                    <kbd className="px-1 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
+                        `
+                    </kbd>{" "}
+                    to see how fast this is
+                </p>
             </div>
         </footer>
     );

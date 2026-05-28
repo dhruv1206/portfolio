@@ -16,6 +16,7 @@ const TerminalOverlay = dynamic(() => import("./ui/terminal-overlay"), { ssr: fa
 const VoiceControlButton = dynamic(() => import("./ui/voice-control-button"), { ssr: false });
 const CinematicMode = dynamic(() => import("./ui/cinematic-mode"), { ssr: false });
 const ViewTransitions = dynamic(() => import("./ui/view-transitions").then((m) => m.ViewTransitions), { ssr: false });
+const PerfHud = dynamic(() => import("./ui/perf-hud"), { ssr: false });
 
 // Inner component to use hooks (must be inside providers)
 function ClientProvidersInner({ children }) {
@@ -58,6 +59,10 @@ function ClientProvidersInner({ children }) {
 
             {/* Cinematic Director's Cut Mode */}
             <CinematicMode />
+
+            {/* Live perf HUD — off by default; press ` to toggle.
+                Hint is visible in the footer. */}
+            <PerfHud />
 
             {children}
         </>
