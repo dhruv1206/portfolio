@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { eventBus } from "@/app/lib/event-bus";
 
 /**
  * useIdleCallback - Defer non-critical work to browser idle time.
@@ -60,6 +61,10 @@ export function useIntersectionObserver(
             entries.forEach((entry) => {
                 if (entry.isIntersecting) {
                     callbackRef.current(true);
+                    eventBus.emit("io:enter", {
+                        target: entry.target.tagName.toLowerCase(),
+                        id: entry.target.id || null,
+                    });
                     observer.disconnect();
                 }
             });

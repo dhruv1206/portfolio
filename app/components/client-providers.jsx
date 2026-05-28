@@ -17,6 +17,10 @@ const VoiceControlButton = dynamic(() => import("./ui/voice-control-button"), { 
 const CinematicMode = dynamic(() => import("./ui/cinematic-mode"), { ssr: false });
 const ViewTransitions = dynamic(() => import("./ui/view-transitions").then((m) => m.ViewTransitions), { ssr: false });
 const PerfHud = dynamic(() => import("./ui/perf-hud"), { ssr: false });
+const SystemArchitectureOverlay = dynamic(
+    () => import("./ui/system-architecture-overlay"),
+    { ssr: false },
+);
 
 // Inner component to use hooks (must be inside providers)
 function ClientProvidersInner({ children }) {
@@ -63,6 +67,11 @@ function ClientProvidersInner({ children }) {
             {/* Live perf HUD — off by default; press ` to toggle.
                 Hint is visible in the footer. */}
             <PerfHud />
+
+            {/* System architecture overlay — Stripe-style "dev mode"
+                toggle: floating chevron icon → full-screen system
+                graph with live event edges. */}
+            <SystemArchitectureOverlay />
 
             {children}
         </>

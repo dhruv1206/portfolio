@@ -5,6 +5,8 @@
  * Creates section-aware ambient soundscapes
  */
 
+import { eventBus } from "@/app/lib/event-bus";
+
 let Tone = null;
 let isInitialized = false;
 let synth = null;
@@ -168,10 +170,15 @@ export function stopGenerativeAudio() {
  */
 export function setSection(section) {
     if (section === currentSection) return;
+    const previous = currentSection;
     currentSection = section;
     if (isPlaying) {
         playSection(section);
     }
+    // Surfaced to the system-architecture overlay: IO scheduler →
+    // Tone audio worklet edge animates when the scroll position
+    // pushes a new section into view.
+    eventBus.emit("audio:section-change", { from: previous, to: section, playing: isPlaying });
 }
 
 /**

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { ACTION_SCRIPTS, PROJECT_SCRIPTS } from "./use-system-voice";
 import { useFeatureSupport } from "./use-feature-support";
+import { eventBus } from "@/app/lib/event-bus";
 
 // ============================================================================
 // STOP WORDS & NORMALIZATION
@@ -467,6 +468,10 @@ export function useVoiceCommands() {
         setMatchFailed(false);
         setLastCommand({ text: originalText, action });
         previousContextRef.current = action;
+        // Announce this on the event bus so the system-architecture
+        // overlay can light up the matching edge (voice → intent →
+        // router). Fire-and-forget — no listeners == no cost.
+        eventBus.emit("voice:intent", { action, transcript: originalText });
         
         // Auto-lookup response from scripts if not provided
         let displayText = response;

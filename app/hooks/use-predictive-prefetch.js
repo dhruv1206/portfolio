@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { eventBus } from "@/app/lib/event-bus";
 
 /**
  * usePredictivePrefetch - Detect mouse velocity and prefetch data
@@ -98,6 +99,7 @@ export function usePredictivePrefetch(targets = []) {
                 // Prefetch the predicted URL
                 router.prefetch(predictedUrl);
                 prefetchedUrls.current.add(predictedUrl);
+                eventBus.emit("prefetch:queued", { url: predictedUrl });
             }
 
             animationFrame.current = requestAnimationFrame(checkPrediction);
