@@ -17,6 +17,7 @@ const VoiceControlButton = dynamic(() => import("./ui/voice-control-button"), { 
 const CinematicMode = dynamic(() => import("./ui/cinematic-mode"), { ssr: false });
 const ViewTransitions = dynamic(() => import("./ui/view-transitions").then((m) => m.ViewTransitions), { ssr: false });
 const PerfHud = dynamic(() => import("./ui/perf-hud"), { ssr: false });
+const AudioPrompt = dynamic(() => import("./ui/audio-prompt"), { ssr: false });
 
 // System architecture overlay + its DOM event bridge are temporarily
 // hidden — the visualization shipped working but didn't read as
@@ -87,6 +88,9 @@ function ClientProvidersInner({ children }) {
             {/* Live perf HUD — off by default; press ` to toggle.
                 Hint is visible in the footer. */}
             <PerfHud />
+
+            {/* First-visit ambient-sound opt-in (bottom-left). */}
+            <AudioPrompt />
 
             {/* System architecture overlay + event bridge are
                 disabled — see comment block at the top of this file. */}

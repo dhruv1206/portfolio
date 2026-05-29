@@ -124,16 +124,33 @@ function Footer() {
                     </p>
                 </div>
 
-                {/* Subtle discoverable hint for the live perf HUD —
-                    the closing argument of the backend-craft thesis:
-                    "the site I'm asking you to trust me to build is
-                    itself the proof." */}
-                <p className="mt-3 text-center text-[11px] text-gray-600 font-mono">
-                    press{" "}
-                    <kbd className="px-1 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
-                        `
-                    </kbd>{" "}
-                    to see how fast this is
+                {/* Subtle discoverable hints — easter eggs that
+                    reward the curious. The perf HUD is the closing
+                    argument of the backend-craft thesis ("the site
+                    I'm asking you to trust me to build is itself the
+                    proof"); stealth mode is a recruiter-friendly
+                    plain-text resume. */}
+                <p className="mt-3 text-center text-[11px] text-gray-600 font-mono flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                    <span>
+                        press{" "}
+                        <kbd className="px-1 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
+                            `
+                        </kbd>{" "}
+                        to see how fast this is
+                    </span>
+                    <span>
+                        press{" "}
+                        <kbd className="px-1 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
+                            Esc
+                        </kbd>{" "}
+                        twice for a printable resume
+                    </span>
+                    <Link
+                        href="/lab"
+                        className="text-violet-500/70 hover:text-violet-300 transition-colors"
+                    >
+                        /lab — live experiments →
+                    </Link>
                 </p>
             </div>
         </footer>

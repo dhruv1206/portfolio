@@ -76,6 +76,12 @@ export default function RootLayout({ children }) {
             className={`${spaceGrotesk.variable} ${inter.variable}`}
         >
             <body className="font-body antialiased">
+                {/* Skip-to-content: first focusable element so keyboard
+                    + screen-reader users can bypass the nav. Styles in
+                    globals.scss (.skip-to-content). */}
+                <a href="#main-content" className="skip-to-content">
+                    Skip to content
+                </a>
                 <ClientProviders>
                     {/* Toast Notifications */}
                     <ToastContainer
@@ -91,8 +97,14 @@ export default function RootLayout({ children }) {
                         theme="dark"
                     />
 
-                    {/* Main Content */}
-                    <main className="relative min-h-screen mx-auto px-6 sm:px-12 lg:max-w-[70rem] xl:max-w-[76rem] 2xl:max-w-[92rem] text-white">
+                    {/* Main Content. `id` is the skip-link target;
+                        tabIndex=-1 lets it receive programmatic focus
+                        without entering the tab order. */}
+                    <main
+                        id="main-content"
+                        tabIndex={-1}
+                        className="relative min-h-screen mx-auto px-6 sm:px-12 lg:max-w-[70rem] xl:max-w-[76rem] 2xl:max-w-[92rem] text-white outline-none"
+                    >
                         <Navbar />
                         {children}
                         <ScrollToTop />

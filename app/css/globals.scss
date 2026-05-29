@@ -643,3 +643,66 @@ body {
         animation-name: none;
     }
 }
+
+/* ============================================
+   ACCESSIBILITY (Phase 5 a11y pass)
+   ============================================ */
+
+/* Skip-to-content link — visually hidden until focused, then it
+   parks at the top-left so a keyboard user can jump past the nav.
+   First focusable element in the DOM (see app/layout.js). */
+.skip-to-content {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transform: translateY(-120%);
+    padding: 0.75rem 1.25rem;
+    background: var(--color-accent-primary);
+    color: #fff;
+    font-weight: 600;
+    border-bottom-right-radius: 0.5rem;
+    transition: transform 0.18s ease;
+}
+.skip-to-content:focus {
+    transform: translateY(0);
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+/* Keyboard focus ring for every interactive element. `:focus-visible`
+   only paints for keyboard/AT navigation, never for mouse clicks, so
+   it doesn't add visual noise for pointer users. The site had no
+   global focus style before this. */
+:focus-visible {
+    outline: 2px solid var(--color-accent-secondary);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+/* Belt-and-suspenders: any element that opts out of the default
+   outline must still show the ring under :focus-visible. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--color-accent-secondary);
+    outline-offset: 2px;
+}
+
+/* Global reduced-motion guard. Components already branch on
+   `usePrefersReducedMotion`, but this catches any CSS keyframe /
+   transition / smooth-scroll that JS doesn't gate. Near-instant
+   (0.01ms) instead of 0 so animationend/transitionend listeners
+   still fire. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

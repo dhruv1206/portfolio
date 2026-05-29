@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVoiceCommands } from "@/app/hooks/use-voice-commands";
 import { useSystemVoice } from "@/app/hooks/use-system-voice";
+import { useMounted } from "@/app/hooks/use-mounted";
+import { useLocalStorageBoolean } from "@/app/hooks/use-localstorage-state";
 
 const VoiceControlButton = () => {
     const {
@@ -34,6 +36,22 @@ const VoiceControlButton = () => {
 
     const [showTooltip, setShowTooltip] = useState(false);
     const [hasAcknowledged, setHasAcknowledged] = useState(false);
+
+    // First-visit onboarding bubble. Auto-shows once (localStorage),
+    // teaches that this mic is a navigation tool, then auto-dismisses
+    // after a few seconds. We deliberately do NOT bind the spacebar to
+    // talk: space is the standard scroll key, and hijacking it would
+    // be an a11y regression.
+    const mounted = useMounted();
+    const [onboardSeen, setOnboardSeen] = useLocalStorageBoolean(
+        "voice-onboarding-seen",
+        false,
+    );
+    useEffect(() => {
+        if (!mounted || onboardSeen) return undefined;
+        const t = setTimeout(() => setOnboardSeen(true), 8000);
+        return () => clearTimeout(t);
+    }, [mounted, onboardSeen, setOnboardSeen]);
 
     // ========================================================================
     // TTS ECHO PREVENTION INTEGRATION
@@ -93,6 +111,8 @@ const VoiceControlButton = () => {
     // ========================================================================
 
     const handleToggle = async () => {
+        // Interacting with the mic counts as "onboarded".
+        if (!onboardSeen) setOnboardSeen(true);
         if (!isListening && !hasAcknowledged && ttsSupported) {
             setHasAcknowledged(true);
             await speak("System online. Voice navigation ready.");
@@ -110,6 +130,7 @@ const VoiceControlButton = () => {
     };
 
     const status = getButtonStatus();
+    const showOnboard = mounted && !onboardSeen && status === "idle";
 
     return (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4 pointer-events-none">
@@ -303,6 +324,43 @@ const VoiceControlButton = () => {
                         className="absolute right-20 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-black/80 backdrop-blur border border-white/10 rounded font-mono text-xs text-violet-300 pointer-events-none whitespace-nowrap"
                     >
                         INITIATE VOICE PROTOCOL
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* First-visit onboarding bubble — auto-shown once, sits
+                above the orb so it doesn't fight the hover tooltip. */}
+            <AnimatePresence>
+                {showOnboard && !showTooltip && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 26 }}
+                        className="pointer-events-auto absolute bottom-20 right-0 w-60 glass-card p-3 shadow-2xl shadow-violet-500/10"
+                        data-voice-onboarding
+                    >
+                        <p className="text-sm text-gray-200 font-medium leading-snug">
+                            Talk to navigate.
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                            Tap the mic and say{" "}
+                            <span className="text-violet-300">
+                                &ldquo;show me backend projects&rdquo;
+                            </span>{" "}
+                            or{" "}
+                            <span className="text-violet-300">
+                                &ldquo;go to contact&rdquo;
+                            </span>
+                            .
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setOnboardSeen(true)}
+                            className="mt-2 text-[11px] text-gray-500 hover:text-white transition-colors"
+                        >
+                            Got it
+                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
