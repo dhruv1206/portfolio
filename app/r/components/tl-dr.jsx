@@ -14,7 +14,7 @@ const STATS = [
     {
         value: "1s → <300ms",
         label: "P99 latency cut",
-        sub: "via caching + query optimisation",
+        sub: "via caching + query optimization",
     },
     {
         value: "95%",
