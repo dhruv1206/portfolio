@@ -26,6 +26,10 @@ const LOADERS = {
         ssr: false,
         loading: () => <LoadingShim />,
     }),
+    physarum: dynamic(() => import("./experiments/physarum"), {
+        ssr: false,
+        loading: () => <LoadingShim />,
+    }),
 };
 
 function LoadingShim() {

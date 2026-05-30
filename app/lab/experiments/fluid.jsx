@@ -198,15 +198,22 @@ fn vs(@builtin(vertex_index) vi: u32) -> VSOut {
 @fragment
 fn fs(in: VSOut) -> @location(0) vec4<f32> {
   let w = u32(rsim.sizeX); let h = u32(rsim.sizeY);
-  let gx = min(u32(in.uv.x * rsim.sizeX), w - 1u);
-  let gy = min(u32(in.uv.y * rsim.sizeY), h - 1u);
-  let c = rdye[gy * w + gx].rgb;
+  // Bilinear sample the dye grid so upscaling to the (much larger,
+  // retina) canvas is smooth instead of blocky.
+  let fx = clamp(in.uv.x * rsim.sizeX - 0.5, 0.0, rsim.sizeX - 1.001);
+  let fy = clamp(in.uv.y * rsim.sizeY - 0.5, 0.0, rsim.sizeY - 1.001);
+  let x0 = u32(floor(fx)); let y0 = u32(floor(fy));
+  let x1 = min(x0 + 1u, w - 1u); let y1 = min(y0 + 1u, h - 1u);
+  let tx = fx - f32(x0); let ty = fy - f32(y0);
+  let c00 = rdye[y0 * w + x0].rgb; let c10 = rdye[y0 * w + x1].rgb;
+  let c01 = rdye[y1 * w + x0].rgb; let c11 = rdye[y1 * w + x1].rgb;
+  let c = mix(mix(c00, c10, tx), mix(c01, c11, tx), ty);
   let mapped = c / (c + vec3<f32>(0.6)); // tonemap toward white
   return vec4<f32>(mapped, 1.0);
 }
 `;
 
-const SIM_W = 240;
+const SIM_W = 384;
 const JACOBI_ITERS = 30;
 const SIM_FLOATS = 16; // 64-byte uniform
 
