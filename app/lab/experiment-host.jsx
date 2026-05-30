@@ -22,6 +22,10 @@ const LOADERS = {
         () => import("./experiments/reaction-diffusion"),
         { ssr: false, loading: () => <LoadingShim /> },
     ),
+    fluid: dynamic(() => import("./experiments/fluid"), {
+        ssr: false,
+        loading: () => <LoadingShim />,
+    }),
 };
 
 function LoadingShim() {
