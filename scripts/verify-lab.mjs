@@ -48,7 +48,7 @@ async function canvasVariance(page) {
     });
 }
 
-const SLUGS = ["wave-equation", "verlet-cloth", "n-body"];
+const SLUGS = ["wave-equation", "verlet-cloth", "n-body", "reaction-diffusion"];
 
 async function main() {
     const browser = await chromium.launch({ headless: true });
@@ -71,7 +71,7 @@ async function main() {
     const cardCount = await page.evaluate(
         () => document.querySelectorAll('a[href^="/lab/"]').length,
     );
-    record("index renders 3 experiment cards", cardCount >= 3, `cards=${cardCount}`);
+    record("index renders all experiment cards", cardCount >= 7, `cards=${cardCount}`);
 
     // ---- 2-4. Each experiment ----
     for (const slug of SLUGS) {

@@ -18,6 +18,10 @@ const LOADERS = {
         ssr: false,
         loading: () => <LoadingShim />,
     }),
+    "reaction-diffusion": dynamic(
+        () => import("./experiments/reaction-diffusion"),
+        { ssr: false, loading: () => <LoadingShim /> },
+    ),
 };
 
 function LoadingShim() {
