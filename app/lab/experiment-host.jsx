@@ -30,6 +30,10 @@ const LOADERS = {
         ssr: false,
         loading: () => <LoadingShim />,
     }),
+    "mpm-fluid": dynamic(() => import("./experiments/mpm-fluid"), {
+        ssr: false,
+        loading: () => <LoadingShim />,
+    }),
 };
 
 function LoadingShim() {

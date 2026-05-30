@@ -465,16 +465,21 @@ export default function Fluid() {
                         pointer.hue = (pointer.hue + 0.01) % 1;
                         col = hsv(pointer.hue);
                     }
-                } else if (autoSeed > 0) {
-                    const t = (90 - autoSeed) * 0.08;
-                    px = W * (0.5 + 0.25 * Math.cos(t));
-                    py = H * (0.5 + 0.25 * Math.sin(t * 1.3));
-                    dx = -Math.sin(t) * 4;
-                    dy = Math.cos(t * 1.3) * 4;
+                } else {
+                    // Perpetual gentle auto-stir when idle: a colour
+                    // source orbits the canvas so the fluid keeps
+                    // swirling instead of dissipating to black. The
+                    // 0.995 dissipation balances the continuous inject
+                    // into a steady, vivid flow.
+                    autoSeed++;
+                    const t = autoSeed * 0.05;
+                    px = W * (0.5 + 0.28 * Math.cos(t));
+                    py = H * (0.5 + 0.28 * Math.sin(t * 1.3));
+                    dx = -Math.sin(t) * 5;
+                    dy = Math.cos(t * 1.3) * 5;
                     active = 1;
-                    pointer.hue = (pointer.hue + 0.012) % 1;
+                    pointer.hue = (pointer.hue + 0.006) % 1;
                     col = hsv(pointer.hue);
-                    autoSeed--;
                 }
                 sim[0] = W; sim[1] = H; sim[2] = 1.0; sim[3] = active;
                 sim[4] = px; sim[5] = py; sim[6] = dx; sim[7] = dy;
