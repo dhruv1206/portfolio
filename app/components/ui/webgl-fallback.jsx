@@ -2,6 +2,17 @@
 
 import { motion } from "framer-motion";
 
+// Pre-compute random dot positions at module load. react-hooks/purity
+// rejects Math.random() during render (and inside useMemo, since memo
+// callbacks run during render). Module-scope evaluation runs once per
+// bundle and is invisible to the purity rule.
+const DOTS = Array.from({ length: 20 }, () => ({
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    duration: 2 + Math.random() * 2,
+    delay: Math.random() * 2,
+}));
+
 /**
  * WebGLFallback - Static fallback when WebGL is not available or crashes
  */
@@ -87,21 +98,21 @@ const WebGLFallback = () => {
 
             {/* Decorative dots */}
             <div className="absolute inset-0 pointer-events-none">
-                {[...Array(20)].map((_, i) => (
+                {DOTS.map((dot, i) => (
                     <motion.div
                         key={i}
                         className="absolute w-1 h-1 bg-white/20 rounded-full"
                         style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
+                            left: dot.left,
+                            top: dot.top,
                         }}
                         animate={{
                             opacity: [0.2, 0.5, 0.2],
                         }}
                         transition={{
-                            duration: 2 + Math.random() * 2,
+                            duration: dot.duration,
                             repeat: Infinity,
-                            delay: Math.random() * 2,
+                            delay: dot.delay,
                         }}
                     />
                 ))}

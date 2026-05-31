@@ -4,6 +4,44 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { personalData } from "@/utils/data/personal-data";
 
+// Pre-compute the matrix rain at module load (NOT in render — the
+// react-hooks/purity rule rejects Math.random() during render, including
+// inside useMemo). Shared across all MatrixRain mounts; visually random
+// once per JS bundle, which is plenty for a background decoration.
+const MATRIX_COLUMNS = Array.from({ length: 20 }, (_, columnIndex) => ({
+    left: `${columnIndex * 5}%`,
+    duration: 3 + Math.random() * 2,
+    delay: Math.random() * 2,
+    bits: Array.from({ length: 40 }, () =>
+        Math.random() > 0.5 ? "1" : "0",
+    ),
+}));
+
+function MatrixRain() {
+    return (
+        <div className="absolute inset-0 pointer-events-none opacity-5">
+            {MATRIX_COLUMNS.map((column, columnIndex) => (
+                <motion.div
+                    key={columnIndex}
+                    className="absolute text-green-500 text-xs"
+                    style={{ left: column.left }}
+                    initial={{ y: "-100%" }}
+                    animate={{ y: "100vh" }}
+                    transition={{
+                        duration: column.duration,
+                        repeat: Infinity,
+                        delay: column.delay,
+                    }}
+                >
+                    {column.bits.map((bit, j) => (
+                        <div key={j}>{bit}</div>
+                    ))}
+                </motion.div>
+            ))}
+        </div>
+    );
+}
+
 const COMMANDS = {
     help: () => `
 Available commands:
@@ -153,26 +191,8 @@ const TerminalOverlay = ({ isOpen, onClose }) => {
                         className="h-[calc(100vh-48px)] overflow-y-auto p-4 font-mono text-sm"
                     >
                         {/* Matrix rain effect (simplified) */}
-                        <div className="absolute inset-0 pointer-events-none opacity-5">
-                            {[...Array(20)].map((_, i) => (
-                                <motion.div
-                                    key={i}
-                                    className="absolute text-green-500 text-xs"
-                                    style={{ left: `${i * 5}%` }}
-                                    initial={{ y: "-100%" }}
-                                    animate={{ y: "100vh" }}
-                                    transition={{
-                                        duration: 3 + Math.random() * 2,
-                                        repeat: Infinity,
-                                        delay: Math.random() * 2,
-                                    }}
-                                >
-                                    {"01".repeat(20).split("").map((c, j) => (
-                                        <div key={j}>{Math.random() > 0.5 ? "1" : "0"}</div>
-                                    ))}
-                                </motion.div>
-                            ))}
-                        </div>
+                        <MatrixRain />
+
 
                         {/* Command history */}
                         <div className="relative z-10">

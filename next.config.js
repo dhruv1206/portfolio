@@ -1,9 +1,18 @@
 const path = require("path");
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+    enabled: process.env.ANALYZE === "true",
+});
 
 /** @type {import('next').NextConfig} */
-module.exports = {
+const nextConfig = {
     sassOptions: {
         includePaths: [path.join(__dirname, "styles")],
+    },
+
+    // Build-time substituted env vars. Treated as static literals after
+    // build, so they don't trip Cache Components' "current-time" guard.
+    env: {
+        BUILD_YEAR: new Date().getFullYear().toString(),
     },
 
     // Optimized image configuration
@@ -41,12 +50,15 @@ module.exports = {
     // Performance optimizations
     experimental: {
         // Optimize package imports
-        optimizePackageImports: [
-            "framer-motion",
-            "react-icons",
-            "@react-three/drei",
-        ],
+        optimizePackageImports: ["framer-motion", "react-icons"],
     },
+
+    // Cache Components (formerly PPR / `experimental.ppr` in Next 15).
+    // Strict mode: every dynamic-value access (params, fetch, Date,
+    // localStorage…) must sit under a Suspense boundary. We comply by
+    // wrapping route content in Suspense at the page level and isolating
+    // client-only providers below the route.
+    cacheComponents: true,
 
     // Compiler options for production
     compiler: {
@@ -78,3 +90,5 @@ module.exports = {
         ];
     },
 };
+
+module.exports = withBundleAnalyzer(nextConfig);

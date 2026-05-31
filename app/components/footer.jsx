@@ -1,6 +1,11 @@
-"use client";
+// Server Component: renders the full footer including the dynamic
+// copyright year. Removing the previous "use client" directive (and the
+// motion/AnimatePresence imports) lets Cache Components statically
+// prerender the route while still keeping `new Date()` correct on each
+// build/revalidate. The heart-pulse animation is CSS (`animate-heartbeat`
+// defined in globals.scss) and hover transforms are Tailwind utilities,
+// so no React state is needed.
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { personalData } from "@/utils/data/personal-data";
 import { BsGithub, BsLinkedin, BsHeart } from "react-icons/bs";
@@ -22,7 +27,12 @@ const navLinks = [
 ];
 
 function Footer() {
-    const currentYear = new Date().getFullYear();
+    // BUILD_YEAR is injected at build time by `next.config.js`'s `env`
+    // field, so the literal is baked into the bundle — Cache Components
+    // sees a static string. Year refreshes on every deploy / ISR
+    // revalidation (≤1h per the route config), which is plenty often
+    // enough for a copyright line.
+    const currentYear = process.env.BUILD_YEAR;
 
     return (
         <footer className="relative border-t border-white/5 bg-dark-900/50 backdrop-blur-sm">
@@ -72,17 +82,16 @@ function Footer() {
                         </h4>
                         <div className="flex gap-3">
                             {socialLinks.map((social) => (
-                                <motion.div key={social.label} whileHover={{ y: -2 }}>
-                                    <Link
-                                        href={social.href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-violet-400 hover:border-violet-500/50 transition-all"
-                                        aria-label={social.label}
-                                    >
-                                        <social.icon size={18} />
-                                    </Link>
-                                </motion.div>
+                                <Link
+                                    key={social.label}
+                                    href={social.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-violet-400 hover:border-violet-500/50 hover:-translate-y-0.5 transition-all duration-200"
+                                    aria-label={social.label}
+                                >
+                                    <social.icon size={18} />
+                                </Link>
                             ))}
                         </div>
                     </div>
@@ -108,15 +117,41 @@ function Footer() {
 
                     <p className="flex items-center gap-1">
                         Made with{" "}
-                        <motion.span
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 1, repeat: Infinity }}
-                        >
+                        <span className="inline-flex animate-heartbeat origin-center">
                             <BsHeart className="text-pink-500" />
-                        </motion.span>{" "}
+                        </span>{" "}
                         & Next.js
                     </p>
                 </div>
+
+                {/* Subtle discoverable hints — easter eggs that
+                    reward the curious. The perf HUD is the closing
+                    argument of the backend-craft thesis ("the site
+                    I'm asking you to trust me to build is itself the
+                    proof"); stealth mode is a recruiter-friendly
+                    plain-text resume. */}
+                <p className="mt-3 text-center text-[11px] text-gray-600 font-mono flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                    <span>
+                        press{" "}
+                        <kbd className="px-1 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
+                            `
+                        </kbd>{" "}
+                        to see how fast this is
+                    </span>
+                    <span>
+                        press{" "}
+                        <kbd className="px-1 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
+                            Esc
+                        </kbd>{" "}
+                        twice for a printable resume
+                    </span>
+                    <Link
+                        href="/lab"
+                        className="text-violet-500/70 hover:text-violet-300 transition-colors"
+                    >
+                        /lab — live experiments →
+                    </Link>
+                </p>
             </div>
         </footer>
     );

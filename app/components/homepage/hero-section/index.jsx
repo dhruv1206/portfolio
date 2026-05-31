@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { personalData } from "@/utils/data/personal-data";
+import { useMounted } from "@/app/hooks/use-mounted";
 import MagneticButton from "../../ui/magnetic-button";
 import { BsGithub, BsLinkedin } from "react-icons/bs";
 import { SiLeetcode } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
 import { MdDownload, MdArrowOutward } from "react-icons/md";
 
-// Dynamically import 3D scene to avoid SSR issues
-const Hero3DScene = dynamic(() => import("../../ui/hero-3d-scene"), {
+// Dynamically import the system topology to keep it out of the critical path
+const SystemTopology = dynamic(() => import("../../hero/system-topology"), {
     ssr: false,
     loading: () => (
         <div className="w-full h-full flex items-center justify-center">
@@ -20,6 +21,12 @@ const Hero3DScene = dynamic(() => import("../../ui/hero-3d-scene"), {
         </div>
     ),
 });
+
+// WebGPU particle background — runs on a worker, only loaded client-side.
+const ParticleHeroWebGPU = dynamic(
+    () => import("../../hero/particle-hero-webgpu"),
+    { ssr: false },
+);
 
 const socialLinks = [
     { icon: BsGithub, href: personalData.github, label: "GitHub" },
@@ -29,12 +36,8 @@ const socialLinks = [
 ];
 
 function HeroSection() {
-    const [mounted, setMounted] = useState(false);
+    const mounted = useMounted();
     const containerRef = useRef(null);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     // Text animation variants
     const containerVariants = {
@@ -60,18 +63,8 @@ function HeroSection() {
         },
     };
 
-    const letterVariants = {
-        hidden: { opacity: 0, y: 50 },
-        visible: (i) => ({
-            opacity: 1,
-            y: 0,
-            transition: {
-                duration: 0.5,
-                delay: i * 0.05,
-                ease: [0.4, 0, 0.2, 1],
-            },
-        }),
-    };
+    // letterVariants used to animate the per-letter h1 spans, which
+    // are now rendered by the WebGPU particle layer instead.
 
     const firstName = "DHRUV";
     const lastName = "AGRAWAL";
@@ -81,8 +74,16 @@ function HeroSection() {
             ref={containerRef}
             className="relative min-h-screen flex items-center pt-20 pb-12 overflow-hidden"
         >
-            {/* Background decorative elements */}
-            <div className="absolute inset-0 pointer-events-none">
+            {/* WebGPU particle layer is `fixed inset-0` and self-mounts
+                at the viewport level. Rendered here (rather than in the
+                root layout) so it lives and unmounts with the hero
+                section — no need to render particles on /blog or
+                /projects/[slug] pages. */}
+            {mounted && <ParticleHeroWebGPU />}
+
+            {/* Background decorative blobs — useful even when particles
+                are active (subtle ambient colour under the field). */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-violet-500/10 rounded-full blur-[100px]" />
                 <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px]" />
             </div>
@@ -103,49 +104,52 @@ function HeroSection() {
                         Hello, I&apos;m
                     </motion.p>
 
-                    {/* Giant Name */}
-                    <div className="mb-2">
-                        <h1 className="font-display font-bold text-display-xl leading-none tracking-tighter">
-                            {firstName.split("").map((letter, i) => (
-                                <motion.span
-                                    key={i}
-                                    custom={i}
-                                    variants={letterVariants}
-                                    initial="hidden"
-                                    animate="visible"
-                                    className="inline-block gradient-text"
-                                >
-                                    {letter}
-                                </motion.span>
-                            ))}
-                        </h1>
+                    {/* Logical name for screen readers + SEO. */}
+                    <h1 className="sr-only">
+                        {firstName} {lastName}
+                    </h1>
+
+                    {/* Layout-only twins of the original typography. The
+                        WebGPU particle layer reads these elements'
+                        bounding rects to sample text targets, so the
+                        particle "letters" land exactly where the original
+                        text sat. `visibility: hidden` keeps them in flow
+                        (so the rest of the column slots under correctly)
+                        while removing them from the paint pass — the
+                        particle layer does the visible rendering. */}
+                    <div
+                        aria-hidden="true"
+                        className="mb-2"
+                        style={{ visibility: "hidden" }}
+                    >
+                        <div
+                            id="hero-name-line-0"
+                            className="font-display font-bold text-display-xl leading-none tracking-tighter"
+                        >
+                            {firstName}
+                        </div>
+                    </div>
+                    <div
+                        aria-hidden="true"
+                        className="mb-6"
+                        style={{ visibility: "hidden" }}
+                    >
+                        <div
+                            id="hero-name-line-1"
+                            className="font-display font-bold text-display-lg leading-none tracking-tighter"
+                        >
+                            {lastName}
+                        </div>
                     </div>
 
-                    <div className="mb-6">
-                        <h1 className="font-display font-bold text-display-lg leading-none tracking-tighter text-white/90">
-                            {lastName.split("").map((letter, i) => (
-                                <motion.span
-                                    key={i}
-                                    custom={i + firstName.length}
-                                    variants={letterVariants}
-                                    initial="hidden"
-                                    animate="visible"
-                                    className="inline-block"
-                                >
-                                    {letter}
-                                </motion.span>
-                            ))}
-                        </h1>
-                    </div>
-
-                    {/* Role/Title */}
+                    {/* Tagline */}
                     <motion.div
                         variants={itemVariants}
                         className="flex items-center gap-3 mb-6"
                     >
                         <span className="w-12 h-[2px] bg-gradient-to-r from-violet-500 to-cyan-500" />
                         <p className="text-xl md:text-2xl font-display font-medium text-gray-300">
-                            {personalData.designation}
+                            Engineering, <span className="gradient-text">demonstrated.</span>
                         </p>
                     </motion.div>
 
@@ -154,9 +158,12 @@ function HeroSection() {
                         variants={itemVariants}
                         className="text-gray-400 text-base md:text-lg max-w-lg mb-8 leading-relaxed"
                     >
-                        Building scalable applications and solving complex problems.
-                        Passionate about full-stack development, cloud technologies,
-                        and creating impactful digital experiences.
+                        Backend engineer architecting systems that serve{" "}
+                        <span className="text-violet-300">150k+ MAU</span>, shaving{" "}
+                        <span className="text-violet-300">P99 latency</span> from
+                        seconds to milliseconds, and cutting infra spend by{" "}
+                        <span className="text-violet-300">95%</span>. Every claim on
+                        this page is runnable — try the demos.
                     </motion.p>
 
                     {/* CTA Buttons */}
@@ -216,20 +223,7 @@ function HeroSection() {
                     }}
                     className="order-1 lg:order-2 relative h-[350px] md:h-[450px] lg:h-[500px]"
                 >
-                    {mounted && <Hero3DScene />}
-
-                    {/* Floating badge */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.2 }}
-                        className="absolute bottom-4 left-4 glass-card px-4 py-3 flex items-center gap-3"
-                    >
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                        <span className="text-sm text-gray-300">
-                            Open to opportunities
-                        </span>
-                    </motion.div>
+                    {mounted && <SystemTopology />}
                 </motion.div>
             </div>
 

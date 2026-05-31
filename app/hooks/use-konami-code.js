@@ -95,4 +95,6 @@ export function useDoubleEscape(onActivate) {
     }, [handleKeyDown]);
 }
 
-export default { useKonamiCode, useDoubleEscape };
+const konamiCodeHooks = { useKonamiCode, useDoubleEscape };
+
+export default konamiCodeHooks;

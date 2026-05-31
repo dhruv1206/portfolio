@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { eventBus } from "@/app/lib/event-bus";
 
 /**
  * usePredictivePrefetch - Detect mouse velocity and prefetch data
@@ -98,6 +99,7 @@ export function usePredictivePrefetch(targets = []) {
                 // Prefetch the predicted URL
                 router.prefetch(predictedUrl);
                 prefetchedUrls.current.add(predictedUrl);
+                eventBus.emit("prefetch:queued", { url: predictedUrl });
             }
 
             animationFrame.current = requestAnimationFrame(checkPrediction);
@@ -114,9 +116,12 @@ export function usePredictivePrefetch(targets = []) {
         };
     }, [targets, router, trackMouse, getVelocity, projectTrajectory]);
 
+    // Expose the prefetched-set as a getter — reading `.current` during
+    // render is rejected by react-hooks/refs. Callers invoke
+    // `getPrefetchedUrls()` when they actually need the data.
     return {
         getVelocity,
-        prefetchedUrls: prefetchedUrls.current,
+        getPrefetchedUrls: () => prefetchedUrls.current,
     };
 }
 

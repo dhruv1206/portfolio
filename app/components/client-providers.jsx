@@ -15,6 +15,33 @@ const FluidCursor = dynamic(() => import("./ui/fluid-cursor"), { ssr: false });
 const TerminalOverlay = dynamic(() => import("./ui/terminal-overlay"), { ssr: false });
 const VoiceControlButton = dynamic(() => import("./ui/voice-control-button"), { ssr: false });
 const CinematicMode = dynamic(() => import("./ui/cinematic-mode"), { ssr: false });
+const ViewTransitions = dynamic(() => import("./ui/view-transitions").then((m) => m.ViewTransitions), { ssr: false });
+const PerfHud = dynamic(() => import("./ui/perf-hud"), { ssr: false });
+const AudioPrompt = dynamic(() => import("./ui/audio-prompt"), { ssr: false });
+
+// System architecture overlay + its DOM event bridge are temporarily
+// hidden — the visualization shipped working but didn't read as
+// useful enough yet (edges felt arbitrary on a homepage scroll-
+// through, the toggle competes with the voice button for real
+// estate). Source preserved at:
+//   - app/components/ui/system-architecture-overlay.jsx
+//   - app/components/ui/client-event-bridge.jsx
+//   - app/lib/event-bus.js
+//   - instrumented emit() calls in use-voice-commands /
+//     use-performance / use-predictive-prefetch /
+//     audio/generative-audio (these emit() are zero-cost when
+//     nothing subscribes, so they can stay).
+// To re-enable: uncomment the imports + mounts below and run
+// `node scripts/verify-system-overlay.mjs`.
+//
+// const SystemArchitectureOverlay = dynamic(
+//     () => import("./ui/system-architecture-overlay"),
+//     { ssr: false },
+// );
+// const ClientEventBridge = dynamic(
+//     () => import("./ui/client-event-bridge"),
+//     { ssr: false },
+// );
 
 // Inner component to use hooks (must be inside providers)
 function ClientProvidersInner({ children }) {
@@ -25,10 +52,18 @@ function ClientProvidersInner({ children }) {
 
     return (
         <>
+            {/* Native View Transitions wrapper for route navigation */}
+            <ViewTransitions />
+
             {/* Loading Screen */}
             <LoadingScreen />
 
-            {/* Fluid Cursor (behind everything) */}
+            {/* Fluid Cursor (soft violet glow, behind everything). The
+                effect is preserved, but the implementation was rebuilt to
+                be cheap: softness is baked into per-particle radial
+                gradients instead of a full-viewport `filter: blur(30px)`
+                recomputed every frame, and its rAF loop is gated so it
+                stops entirely once the trail fades (zero idle cost). */}
             <FluidCursor opacity={0.03} />
 
             {/* Custom Cursor (on top) */}
@@ -54,6 +89,18 @@ function ClientProvidersInner({ children }) {
 
             {/* Cinematic Director's Cut Mode */}
             <CinematicMode />
+
+            {/* Live perf HUD — off by default; press ` to toggle.
+                Hint is visible in the footer. */}
+            <PerfHud />
+
+            {/* First-visit ambient-sound opt-in (bottom-left). */}
+            <AudioPrompt />
+
+            {/* System architecture overlay + event bridge are
+                disabled — see comment block at the top of this file. */}
+            {/* <SystemArchitectureOverlay /> */}
+            {/* <ClientEventBridge /> */}
 
             {children}
         </>

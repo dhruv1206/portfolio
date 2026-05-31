@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
-import { motion, useSpring, useMotionValue } from "framer-motion";
+import { useRef, useCallback } from "react";
+import { motion, useSpring, useMotionValue, useTransform } from "framer-motion";
 import Link from "next/link";
 import { useAudio } from "@/app/providers/audio-provider";
 import { useHaptics } from "@/app/hooks/use-haptics";
@@ -18,133 +18,103 @@ const MagneticButton = ({
     ...props
 }) => {
     const buttonRef = useRef(null);
-    const animationFrame = useRef(null);
-    const [isHovered, setIsHovered] = useState(false);
 
-    // Use motion values + springs for smoother physics
+    // Use motion values + springs for smoother physics.
     const x = useMotionValue(0);
     const y = useMotionValue(0);
     const springX = useSpring(x, { damping: 20, stiffness: 300, mass: 0.5 });
     const springY = useSpring(y, { damping: 20, stiffness: 300, mass: 0.5 });
 
-    // Content follows at half the speed
-    const contentX = useSpring(x, { damping: 25, stiffness: 400, mass: 0.3 });
-    const contentY = useSpring(y, { damping: 25, stiffness: 400, mass: 0.3 });
+    // Content drifts a *fraction* of the wrapper's offset for a subtle
+    // parallax. Driving it off the full offset made the label travel ~2×
+    // the pill (wrapper offset + content offset), so it overshot and was
+    // the first thing to clip off-screen; 0.25 keeps the label inside the
+    // pill while still giving a little depth.
+    const contentXTarget = useTransform(x, (v) => v * 0.25);
+    const contentYTarget = useTransform(y, (v) => v * 0.25);
+    const contentX = useSpring(contentXTarget, {
+        damping: 25,
+        stiffness: 400,
+        mass: 0.3,
+    });
+    const contentY = useSpring(contentYTarget, {
+        damping: 25,
+        stiffness: 400,
+        mass: 0.3,
+    });
 
-    // Audio and haptics (with fallback if not in provider)
-    let playSound = () => { };
-    let vibrateOnTap = () => { };
-    try {
-        const audio = useAudio();
-        playSound = audio.playSound;
-    } catch {
-        // AudioProvider not available
-    }
-    try {
-        const haptics = useHaptics();
-        vibrateOnTap = haptics.vibrateOnTap;
-    } catch {
-        // Haptics not available
-    }
+    // Audio + haptics. Both hooks always return objects (useAudio's
+    // context has a default, useHaptics has no provider dependency), so
+    // they can be called unconditionally.
+    const { playSound } = useAudio();
+    const { vibrateOnTap } = useHaptics();
 
-    // Reset position with sound effect
-    const resetPosition = useCallback(() => {
-        x.set(0);
-        y.set(0);
-        setIsHovered(false);
-        playSound("thud");
-    }, [x, y, playSound]);
-
-    // Check if point is inside button bounds with padding
-    const isInsideBounds = useCallback((clientX, clientY, padding = 20) => {
-        if (!buttonRef.current) return false;
-        const rect = buttonRef.current.getBoundingClientRect();
-        return (
-            clientX >= rect.left - padding &&
-            clientX <= rect.right + padding &&
-            clientY >= rect.top - padding &&
-            clientY <= rect.bottom + padding
-        );
-    }, []);
-
-    // Handle mouse movement - update position
+    // Pull the button toward the cursor. `onMouseMove` only fires while
+    // the pointer is genuinely over the element, so the offset is only
+    // ever set while hovering.
     const handleMouseMove = useCallback(
         (e) => {
-            if (!buttonRef.current) return;
+            const el = buttonRef.current;
+            if (!el) return;
 
-            const { clientX, clientY } = e;
-            const rect = buttonRef.current.getBoundingClientRect();
+            // getBoundingClientRect reflects the CURRENT transform, so we
+            // subtract the offset already applied to recover the rest box.
+            // Measuring from rest keeps the pull from feeding back on
+            // itself and lets us clamp against the viewport correctly.
+            const rect = el.getBoundingClientRect();
+            const restLeft = rect.left - springX.get();
+            const restTop = rect.top - springY.get();
+            const centerX = restLeft + rect.width / 2;
+            const centerY = restTop + rect.height / 2;
 
-            // Calculate offset from center
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+            let ox = (e.clientX - centerX) * magneticStrength;
+            let oy = (e.clientY - centerY) * magneticStrength;
 
-            const offsetX = (clientX - centerX) * magneticStrength;
-            const offsetY = (clientY - centerY) * magneticStrength;
+            // 1) Keep the pull a subtle nudge.
+            const MAX = 14;
+            ox = Math.max(-MAX, Math.min(MAX, ox));
+            oy = Math.max(-MAX, Math.min(MAX, oy));
 
-            x.set(offsetX);
-            y.set(offsetY);
+            // 2) Never translate the button off-screen: constrain the
+            //    offset so the rest box + offset stays within the viewport
+            //    (small margin). An offset of 0 is always permitted.
+            const M = 10;
+            const loX = Math.min(M - restLeft, 0);
+            const hiX = Math.max(
+                window.innerWidth - M - (restLeft + rect.width),
+                0,
+            );
+            const loY = Math.min(M - restTop, 0);
+            const hiY = Math.max(
+                window.innerHeight - M - (restTop + rect.height),
+                0,
+            );
+            ox = Math.max(loX, Math.min(hiX, ox));
+            oy = Math.max(loY, Math.min(hiY, oy));
+
+            x.set(ox);
+            y.set(oy);
         },
-        [x, y, magneticStrength]
+        [x, y, springX, springY, magneticStrength],
     );
 
-    // Handle mouse enter
-    const handleMouseEnter = useCallback(() => {
-        setIsHovered(true);
-    }, []);
-
-    // Handle mouse leave
+    // Snap back to rest. `mouseleave` is dispatched by the browser on the
+    // element-boundary crossing regardless of pointer speed, so this is
+    // the single, reliable reset.
+    //
+    // This deliberately replaces an earlier design that also ran a global
+    // window `mousemove` listener + rAF bounds-check with a 20px padding
+    // halo. That raced with this reset: on a fast exit the global handler
+    // could re-apply a non-zero offset (cursor still inside the halo)
+    // *after* the leave reset, then get torn down — leaving the button
+    // stuck, translated off-center. Local move + leave cannot get stuck:
+    // the only thing that sets an offset is movement over the element,
+    // and leaving always zeroes it.
     const handleMouseLeave = useCallback(() => {
-        resetPosition();
-    }, [resetPosition]);
-
-    // Global mouse tracking for rapid exits
-    useEffect(() => {
-        if (!isHovered) return;
-
-        let lastMousePos = { x: 0, y: 0 };
-
-        const handleGlobalMouseMove = (e) => {
-            lastMousePos = { x: e.clientX, y: e.clientY };
-
-            // Check if mouse is outside bounds
-            if (!isInsideBounds(e.clientX, e.clientY)) {
-                resetPosition();
-                return;
-            }
-
-            // Update position
-            handleMouseMove(e);
-        };
-
-        // Fallback: periodically check bounds (for very fast exits)
-        const checkBounds = () => {
-            if (!isInsideBounds(lastMousePos.x, lastMousePos.y, 10)) {
-                resetPosition();
-                return;
-            }
-            animationFrame.current = requestAnimationFrame(checkBounds);
-        };
-
-        window.addEventListener("mousemove", handleGlobalMouseMove);
-        animationFrame.current = requestAnimationFrame(checkBounds);
-
-        return () => {
-            window.removeEventListener("mousemove", handleGlobalMouseMove);
-            if (animationFrame.current) {
-                cancelAnimationFrame(animationFrame.current);
-            }
-        };
-    }, [isHovered, isInsideBounds, handleMouseMove, resetPosition]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (animationFrame.current) {
-                cancelAnimationFrame(animationFrame.current);
-            }
-        };
-    }, []);
+        x.set(0);
+        y.set(0);
+        playSound("thud");
+    }, [x, y, playSound]);
 
     const handleClick = (e) => {
         vibrateOnTap();
@@ -176,7 +146,10 @@ const MagneticButton = ({
     ${className}
   `;
 
-    const ButtonContent = () => (
+    // Inline JSX instead of inner components — defining components
+    // inside another component breaks memoization (each render is a new
+    // component identity) and is rejected by react-hooks/static-components.
+    const buttonContent = (
         <motion.span
             className="relative z-10 flex items-center gap-2"
             style={{ x: contentX, y: contentY }}
@@ -185,17 +158,13 @@ const MagneticButton = ({
         </motion.span>
     );
 
-    const MotionWrapper = ({ children: wrapperChildren }) => (
-        <motion.div
-            ref={buttonRef}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            style={{ x: springX, y: springY }}
-            className="inline-block will-change-transform"
-        >
-            {wrapperChildren}
-        </motion.div>
-    );
+    const motionWrapperProps = {
+        ref: buttonRef,
+        onMouseMove: handleMouseMove,
+        onMouseLeave: handleMouseLeave,
+        style: { x: springX, y: springY },
+        className: "inline-block will-change-transform",
+    };
 
     if (href) {
         const linkProps = external
@@ -203,7 +172,7 @@ const MagneticButton = ({
             : {};
 
         return (
-            <MotionWrapper>
+            <motion.div {...motionWrapperProps}>
                 <Link
                     href={href}
                     className={baseClasses}
@@ -211,18 +180,18 @@ const MagneticButton = ({
                     {...linkProps}
                     {...props}
                 >
-                    <ButtonContent />
+                    {buttonContent}
                 </Link>
-            </MotionWrapper>
+            </motion.div>
         );
     }
 
     return (
-        <MotionWrapper>
+        <motion.div {...motionWrapperProps}>
             <button onClick={handleClick} className={baseClasses} {...props}>
-                <ButtonContent />
+                {buttonContent}
             </button>
-        </MotionWrapper>
+        </motion.div>
     );
 };
 

@@ -240,6 +240,7 @@ function ContactSection() {
                                 value={formData.email}
                                 onChange={handleChange}
                                 required
+                                suppressHydrationWarning
                                 className="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 transition-all"
                                 placeholder="your@email.com"
                             />

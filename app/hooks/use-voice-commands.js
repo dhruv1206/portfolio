@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { ACTION_SCRIPTS, PROJECT_SCRIPTS } from "./use-system-voice";
+import { useFeatureSupport } from "./use-feature-support";
+import { eventBus } from "@/app/lib/event-bus";
 
 // ============================================================================
 // STOP WORDS & NORMALIZATION
@@ -252,7 +254,9 @@ export function useVoiceCommands() {
     const router = useRouter();
     
     // Core state
-    const [isSupported, setIsSupported] = useState(false);
+    const isSupported = useFeatureSupport(
+        () => Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+    );
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState("");
     const [lastCommand, setLastCommand] = useState(null);
@@ -273,6 +277,10 @@ export function useVoiceCommands() {
     const actionQueueRef = useRef([]); // For combo commands
     const ttsCallbacksRef = useRef({ onSpeak: null, onSpeakEnd: null }); // TTS integration
     const isPausedForTTSRef = useRef(false); // Echo prevention
+    // Holds the latest stopListening callback so executeAction can call
+    // it without hitting the TDZ for the const binding declared further
+    // down in this hook. Mirrored in an effect at the bottom.
+    const stopListeningRef = useRef(null);
     
     // Constants
     const CONFIDENCE_THRESHOLD = 0.6;
@@ -460,6 +468,10 @@ export function useVoiceCommands() {
         setMatchFailed(false);
         setLastCommand({ text: originalText, action });
         previousContextRef.current = action;
+        // Announce this on the event bus so the system-architecture
+        // overlay can light up the matching edge (voice → intent →
+        // router). Fire-and-forget — no listeners == no cost.
+        eventBus.emit("voice:intent", { action, transcript: originalText });
         
         // Auto-lookup response from scripts if not provided
         let displayText = response;
@@ -589,7 +601,11 @@ export function useVoiceCommands() {
                 toast.success("Email copied to clipboard!");
                 break;
             case "stop":
-                stopListening();
+                // stopListening is defined further down in this hook;
+                // accessing it directly would hit the TDZ for the const
+                // binding. The latest reference is mirrored to a ref
+                // (see effect below the stopListening definition).
+                stopListeningRef.current?.();
                 // Auto-dismiss HUD after 3 seconds
                 setTimeout(() => setAgentResponse(null), 3000);
                 break;
@@ -766,12 +782,10 @@ export function useVoiceCommands() {
     // ========================================================================
     
     useEffect(() => {
-        if (typeof window === "undefined") return;
-        
+        if (!isSupported) return undefined;
+
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        setIsSupported(!!SpeechRecognition);
-        
-        if (!SpeechRecognition) return;
+        if (!SpeechRecognition) return undefined;
         
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = true;
@@ -823,7 +837,7 @@ export function useVoiceCommands() {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
             recognitionRef.current?.stop();
         };
-    }, [processCommand, smartRestart]);
+    }, [isSupported, processCommand, smartRestart]);
 
     // ========================================================================
     // PUBLIC METHODS
@@ -855,6 +869,12 @@ export function useVoiceCommands() {
         // NOTE: Do NOT clear agentResponse here - let the last message persist
         // so 'Voice navigation suspended' shows in HUD
     }, []);
+
+    // Mirror stopListening into a ref so executeAction (declared above)
+    // can call it without a TDZ violation.
+    useEffect(() => {
+        stopListeningRef.current = stopListening;
+    }, [stopListening]);
 
     const toggleListening = useCallback(() => {
         if (isListening) {

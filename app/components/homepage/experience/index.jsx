@@ -37,6 +37,7 @@ const ExperienceCard = ({ experience, index, isLeft }) => {
                                 src={experience.icon}
                                 alt={experience.company}
                                 fill
+                                sizes="40px"
                                 className="object-contain"
                             />
                         </div>

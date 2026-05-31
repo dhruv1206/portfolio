@@ -72,15 +72,16 @@ const CinematicMode = () => {
         }, 100);
     }, []);
 
-    // Animate through sections
+    // Animate through sections. Terminal condition (last section
+    // reached) is detected inside the setTimeout callback rather than
+    // synchronously in the effect body — react-hooks/set-state-in-effect
+    // forbids calling setState directly during effect, so we defer the
+    // stop into the timer, which is an event-handler context.
     useEffect(() => {
-        if (!isActive) return;
+        if (!isActive) return undefined;
 
         const currentPath = CAMERA_PATH[currentIndex];
-        if (!currentPath) {
-            stopCinematic();
-            return;
-        }
+        if (!currentPath) return undefined;
 
         // Update generative audio section
         setSection(currentPath.section);
@@ -91,9 +92,14 @@ const CinematicMode = () => {
             element.scrollIntoView({ behavior: "smooth", block: "center" });
         }
 
-        // Schedule next section
+        // Schedule next section, or stop if we've reached the end.
         timeoutRef.current = setTimeout(() => {
-            setCurrentIndex((prev) => prev + 1);
+            const nextIndex = currentIndex + 1;
+            if (nextIndex >= CAMERA_PATH.length) {
+                stopCinematic();
+            } else {
+                setCurrentIndex(nextIndex);
+            }
         }, currentPath.duration);
 
         return () => {

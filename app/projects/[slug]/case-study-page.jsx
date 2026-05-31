@@ -1,18 +1,101 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { BsGithub, BsArrowLeft } from "react-icons/bs";
 import { MdArrowOutward } from "react-icons/md";
 import {
     StickySidebar,
-    BeforeAfterSlider,
     VideoEmbed,
 } from "@/app/components/case-study/case-study-components";
 import MagneticButton from "@/app/components/ui/magnetic-button";
 import { FadeIn } from "@/app/components/ui/page-transition";
 
+// Per-project live demos. Mounted client-side only because each one
+// owns a Web Worker or a peer connection.
+const DStarDBREPL = dynamic(
+    () => import("@/app/components/case-study/dstardb-repl"),
+    { ssr: false },
+);
+const WebRTCDemo = dynamic(
+    () => import("@/app/components/case-study/webrtc-demo"),
+    { ssr: false },
+);
+const PressReleasePipeline = dynamic(
+    () => import("@/app/components/case-study/press-release-pipeline"),
+    { ssr: false },
+);
+const ScrollCinema = dynamic(
+    () => import("@/app/components/case-study/scroll-cinema"),
+    { ssr: false },
+);
+
+const LIVE_DEMOS = {
+    dstardb: {
+        title: "Try DStarDB",
+        subtitle:
+            "Real Redis-style command set, running entirely in this tab via a Web Worker. Open the REPL and type — every response is timed in microseconds.",
+        Component: DStarDBREPL,
+    },
+    "realtime-collaboration": {
+        title: "Open a real-time room",
+        subtitle:
+            "A real RTCPeerConnection negotiated in your browser. Create a room, share the link, and the other peer can join from anywhere. Loopback mode pairs you with a synthetic peer when you're solo. Either way, the video, RTT, and bitrate stats below are coming from the real WebRTC stack.",
+        Component: WebRTCDemo,
+    },
+    "ai-press-release-generator": {
+        title: "Run the press-release pipeline",
+        subtitle:
+            "Same shape as the production Flask service: ingest → summarize → translate across 10 Indian languages → text-to-speech → compose a slide-based video with zoom + blur + fade. Translation is proxied through MyMemory (Google Translate in prod), speech uses Web Speech (gTTS in prod), and the MP4 timeline is painted live on Canvas (MoviePy in prod).",
+        Component: PressReleasePipeline,
+    },
+};
+
+// Slug → dynamic loader for per-project chapter data. Each module
+// exports `{ chapters, diagramStates }`. The dynamic import keeps
+// chapter prose out of the initial route bundle.
+const CHAPTER_LOADERS = {
+    dstardb: () => import("@/utils/data/case-studies/dstardb"),
+    "realtime-collaboration": () =>
+        import("@/utils/data/case-studies/realtime-collaboration"),
+    "ai-press-release-generator": () =>
+        import("@/utils/data/case-studies/ai-press-release-generator"),
+};
+
+// Loads the per-project chapter module on the client when available.
+// Returns the loaded data for the current slug, or null if the slug
+// has no chapters or the load is still pending. The returned record
+// carries its own slug so a slug change while a load is in flight
+// can't flash stale chapters into the new route.
+function useChapterData(slug) {
+    const [data, setData] = useState(null);
+    useEffect(() => {
+        const loader = CHAPTER_LOADERS[slug];
+        if (!loader) return;
+        let cancelled = false;
+        loader().then((mod) => {
+            if (cancelled) return;
+            setData({
+                slug,
+                chapters: mod.chapters,
+                diagramStates: mod.diagramStates,
+            });
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [slug]);
+    return data && data.slug === slug ? data : null;
+}
+
 export default function CaseStudyPage({ project }) {
+    const chapterData = useChapterData(project.slug);
+    const demo = LIVE_DEMOS[project.slug];
+    const hasCinema = !!chapterData;
+
     return (
         <article className="relative py-24 lg:py-32">
             {/* Back button */}
@@ -84,57 +167,30 @@ export default function CaseStudyPage({ project }) {
                 </header>
             </FadeIn>
 
-            {/* Main content with sidebar */}
+            {/* Main content — scroll cinema for projects that ship
+                chapter data, classic Challenge/Solution layout for
+                projects that don't. */}
+            {hasCinema ? (
+                <FadeIn>
+                    <section id="scroll-cinema" className="mb-20">
+                        <ScrollCinema
+                            chapters={chapterData.chapters}
+                            diagramStates={chapterData.diagramStates}
+                            accentColor={project.accentColor}
+                            demos={demo ? { [project.slug]: demo.Component } : {}}
+                        />
+                    </section>
+                </FadeIn>
+            ) : (
+                <ClassicCaseStudyBody project={project} demo={demo} />
+            )}
+
+            {/* Tech stack + Gallery + Video render below the scroll
+                cinema or the classic body — kept identical across
+                both layouts so the page footer (CTA) is consistent. */}
             <div className="flex gap-12">
-                {/* Sidebar */}
-                <StickySidebar
-                    challenge={project.challenge}
-                    solution={project.solution}
-                />
-
-                {/* Content */}
+                <div className="hidden lg:block w-64 shrink-0" />
                 <div className="flex-1 min-w-0">
-                    {/* Challenge Section */}
-                    <FadeIn>
-                        <section id="challenge" className="mb-16">
-                            <div className="flex items-center gap-4 mb-6">
-                                <span className="text-xs font-mono text-violet-400">
-                                    01
-                                </span>
-                                <h2 className="text-2xl md:text-3xl font-display font-bold text-white">
-                                    The Challenge
-                                </h2>
-                                <div className="flex-1 h-[1px] bg-gradient-to-r from-violet-500/50 to-transparent" />
-                            </div>
-                            <div className="glass-card p-6 md:p-8">
-                                <p className="text-gray-300 leading-relaxed text-lg">
-                                    {project.challenge ||
-                                        "This project addressed key technical and user experience challenges in the domain."}
-                                </p>
-                            </div>
-                        </section>
-                    </FadeIn>
-
-                    {/* Solution Section */}
-                    <FadeIn>
-                        <section id="solution" className="mb-16">
-                            <div className="flex items-center gap-4 mb-6">
-                                <span className="text-xs font-mono text-cyan-400">
-                                    02
-                                </span>
-                                <h2 className="text-2xl md:text-3xl font-display font-bold text-white">
-                                    The Solution
-                                </h2>
-                                <div className="flex-1 h-[1px] bg-gradient-to-r from-cyan-500/50 to-transparent" />
-                            </div>
-                            <div className="glass-card p-6 md:p-8">
-                                <p className="text-gray-300 leading-relaxed text-lg">
-                                    {project.solution ||
-                                        "The solution involved careful architecture design and implementation of modern best practices."}
-                                </p>
-                            </div>
-                        </section>
-                    </FadeIn>
 
                     {/* Tech Stack */}
                     <FadeIn>
@@ -189,12 +245,14 @@ export default function CaseStudyPage({ project }) {
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: index * 0.1 }}
-                                            className="rounded-xl overflow-hidden"
+                                            className="relative aspect-video rounded-xl overflow-hidden"
                                         >
-                                            <img
+                                            <Image
                                                 src={image}
                                                 alt={`${project.name} screenshot ${index + 1}`}
-                                                className="w-full h-full object-cover"
+                                                fill
+                                                sizes="(min-width: 768px) 50vw, 100vw"
+                                                className="object-cover"
                                             />
                                         </motion.div>
                                     ))}
@@ -239,5 +297,82 @@ export default function CaseStudyPage({ project }) {
                 </div>
             </FadeIn>
         </article>
+    );
+}
+
+// Classic Challenge / Solution / Live demo body, used for projects
+// that don't ship a chapter narrative (e.g. the Flutter clones). Kept
+// inside this file so the new scroll-cinema path is the only new
+// surface to learn — projects without chapters look exactly like
+// they did before Phase 3.
+function ClassicCaseStudyBody({ project, demo }) {
+    return (
+        <div className="flex gap-12">
+            <StickySidebar />
+            <div className="flex-1 min-w-0">
+                <FadeIn>
+                    <section id="challenge" className="mb-16">
+                        <div className="flex items-center gap-4 mb-6">
+                            <span className="text-xs font-mono text-violet-400">
+                                01
+                            </span>
+                            <h2 className="text-2xl md:text-3xl font-display font-bold text-white">
+                                The Challenge
+                            </h2>
+                            <div className="flex-1 h-[1px] bg-gradient-to-r from-violet-500/50 to-transparent" />
+                        </div>
+                        <div className="glass-card p-6 md:p-8">
+                            <p className="text-gray-300 leading-relaxed text-lg">
+                                {project.challenge ||
+                                    "This project addressed key technical and user-experience challenges in the domain."}
+                            </p>
+                        </div>
+                    </section>
+                </FadeIn>
+
+                <FadeIn>
+                    <section id="solution" className="mb-16">
+                        <div className="flex items-center gap-4 mb-6">
+                            <span className="text-xs font-mono text-cyan-400">
+                                02
+                            </span>
+                            <h2 className="text-2xl md:text-3xl font-display font-bold text-white">
+                                The Solution
+                            </h2>
+                            <div className="flex-1 h-[1px] bg-gradient-to-r from-cyan-500/50 to-transparent" />
+                        </div>
+                        <div className="glass-card p-6 md:p-8">
+                            <p className="text-gray-300 leading-relaxed text-lg">
+                                {project.solution ||
+                                    "The solution involved careful architecture design and implementation of modern best practices."}
+                            </p>
+                        </div>
+                    </section>
+                </FadeIn>
+
+                {demo && (
+                    <FadeIn>
+                        <section id="live-demo" className="mb-16">
+                            <div className="flex items-center gap-4 mb-6">
+                                <span className="text-xs font-mono text-emerald-400">
+                                    ▶
+                                </span>
+                                <h2 className="text-2xl md:text-3xl font-display font-bold text-white">
+                                    {demo.title}
+                                </h2>
+                                <div className="flex-1 h-[1px] bg-gradient-to-r from-emerald-500/50 to-transparent" />
+                            </div>
+                            <p className="text-gray-400 leading-relaxed mb-6 max-w-3xl">
+                                {demo.subtitle}
+                            </p>
+                            {(() => {
+                                const Comp = demo.Component;
+                                return <Comp />;
+                            })()}
+                        </section>
+                    </FadeIn>
+                )}
+            </div>
+        </div>
     );
 }

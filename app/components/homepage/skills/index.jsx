@@ -38,6 +38,7 @@ const SkillBadge = ({ skill, index }) => {
               src={skillImage.src}
               alt={skill}
               fill
+              sizes="40px"
               className="object-contain"
             />
           )}

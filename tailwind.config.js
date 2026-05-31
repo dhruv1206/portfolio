@@ -83,6 +83,7 @@ module.exports = {
                 "slide-up": "slide-up 0.6s ease-out",
                 "fade-in": "fade-in 0.6s ease-out",
                 "scale-in": "scale-in 0.3s ease-out",
+                "heartbeat": "heartbeat 1s ease-in-out infinite",
             },
             keyframes: {
                 float: {
@@ -92,6 +93,10 @@ module.exports = {
                 "glow-pulse": {
                     "0%, 100%": { opacity: "1" },
                     "50%": { opacity: "0.5" },
+                },
+                heartbeat: {
+                    "0%, 100%": { transform: "scale(1)" },
+                    "50%": { transform: "scale(1.2)" },
                 },
                 "gradient-shift": {
                     "0%, 100%": { backgroundPosition: "0% 50%" },
