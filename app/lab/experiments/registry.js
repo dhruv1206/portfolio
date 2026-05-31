@@ -2,6 +2,14 @@
 // safe to import from server components (the index page +
 // generateStaticParams). The actual interactive components are wired
 // in experiment-host.jsx (client-only, dynamic).
+//
+// The lab favours CRISP, structured, high-contrast line/point art in
+// the site's violet/cyan/white palette (wave / cloth / n-body /
+// pendulum / boids / attractor / fourier). An earlier batch of soft
+// "diffusing field" pieces (reaction-diffusion, fluid, Physarum,
+// MLS-MPM) is parked — source still in app/lab/experiments/, just not
+// listed here or in experiment-host.jsx. Re-add their entries to
+// bring them back.
 
 export const experiments = [
     {
@@ -32,40 +40,40 @@ export const experiments = [
         tags: ["physics", "n-body", "canvas"],
     },
     {
-        slug: "reaction-diffusion",
-        title: "Reaction-Diffusion",
-        tagline: "Gray-Scott Turing patterns",
+        slug: "double-pendulum",
+        title: "Double Pendulum",
+        tagline: "Chaos · sensitive dependence",
         blurb:
-            "Two virtual chemicals diffusing at different rates and reacting A+2B→3B. The Gray-Scott model self-organises into Turing patterns — spots, stripes, mazes, mitosis, coral — and a hair's-width change to the feed/kill rates flips the entire regime. Click to seed; switch presets live.",
-        accent: "#22d3ee",
-        tags: ["reaction-diffusion", "PDE", "emergent", "canvas"],
+            "A fan of double pendulums released from almost-identical angles. They track together for a moment, then the tiniest difference explodes into completely different paths — deterministic chaos, drawn as crisp fading arcs. Click to release a fresh fan.",
+        accent: "#8b5cf6",
+        tags: ["chaos", "ODE", "canvas"],
     },
     {
-        slug: "fluid",
-        title: "Stable Fluids",
-        tagline: "WebGPU · incompressible Navier-Stokes",
+        slug: "boids",
+        title: "Boids",
+        tagline: "Reynolds flocking",
         blurb:
-            "Jos Stam's unconditionally-stable fluid solver, running as WebGPU compute passes: semi-Lagrangian advection, a Jacobi-iteration pressure projection that enforces incompressibility, and vorticity confinement to keep the curls crisp. Drag to inject dye and velocity — it physically cannot blow up.",
-        accent: "#38bdf8",
-        tags: ["fluid dynamics", "Navier-Stokes", "WebGPU compute"],
+            "Hundreds of agents running Craig Reynolds' three rules — separation, alignment, cohesion — with nothing choreographing them. Coherent flocks, splits, and swirls emerge from local interactions alone. Move your cursor to herd them.",
+        accent: "#06b6d4",
+        tags: ["emergent", "flocking", "canvas"],
     },
     {
-        slug: "physarum",
-        title: "Physarum",
-        tagline: "WebGPU · slime-mold agents",
+        slug: "attractor",
+        title: "Lorenz Attractor",
+        tagline: "A strange attractor in 3D",
         blurb:
-            "Hundreds of thousands of agents, each sensing a trail map through three forward sensors, steering toward concentration and depositing their own trail — which then diffuses and decays. No rule says 'build a network', yet transport networks emerge anyway. Agent update + trail diffusion both run on the GPU.",
-        accent: "#a3e635",
-        tags: ["agent-based", "emergent", "WebGPU compute"],
+            "The Lorenz system — three coupled ODEs from atmospheric convection — integrated into its famous butterfly. The trajectory never repeats yet never escapes a bounded region: a strange attractor, traced as a luminous curve you can rotate.",
+        accent: "#f472b6",
+        tags: ["chaos", "ODE", "3D", "canvas"],
     },
     {
-        slug: "mpm-fluid",
-        title: "MLS-MPM Fluid",
-        tagline: "WebGPU · 3D material-point method",
+        slug: "fourier",
+        title: "Fourier Epicycles",
+        tagline: "DFT · rotating circles draw a shape",
         blurb:
-            "A genuinely 3D liquid simulated with the Moving-Least-Squares Material Point Method — momentum is transferred particle→grid→particle (P2G/G2P) each step, sidestepping the neighbour search that bottlenecks SPH. Tens of thousands of particles slosh in a box you can tilt. The moonshot of the lab.",
-        accent: "#60a5fa",
-        tags: ["MLS-MPM", "3D fluid", "WebGPU compute"],
+            "Any closed path can be rebuilt as a sum of rotating circles — the discrete Fourier transform made visible. Each circle spins at its own frequency; chained tip-to-tip, the last tip retraces the original drawing. Click to switch shapes.",
+        accent: "#06b6d4",
+        tags: ["Fourier", "DFT", "canvas"],
     },
 ];
 

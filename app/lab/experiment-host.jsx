@@ -5,6 +5,11 @@ import dynamic from "next/dynamic";
 // Client-only host: each experiment owns a canvas + rAF loop, so it
 // must not SSR. Keyed by slug; the server route only passes the slug
 // string across the boundary.
+//
+// The soft "diffusing field" batch (reaction-diffusion / fluid /
+// physarum / mpm-fluid) is parked — files remain in
+// app/lab/experiments/ but aren't wired here. Re-add the loaders +
+// their registry entries to bring them back.
 const LOADERS = {
     "wave-equation": dynamic(() => import("./experiments/wave-equation"), {
         ssr: false,
@@ -18,19 +23,19 @@ const LOADERS = {
         ssr: false,
         loading: () => <LoadingShim />,
     }),
-    "reaction-diffusion": dynamic(
-        () => import("./experiments/reaction-diffusion"),
+    "double-pendulum": dynamic(
+        () => import("./experiments/double-pendulum"),
         { ssr: false, loading: () => <LoadingShim /> },
     ),
-    fluid: dynamic(() => import("./experiments/fluid"), {
+    boids: dynamic(() => import("./experiments/boids"), {
         ssr: false,
         loading: () => <LoadingShim />,
     }),
-    physarum: dynamic(() => import("./experiments/physarum"), {
+    attractor: dynamic(() => import("./experiments/attractor"), {
         ssr: false,
         loading: () => <LoadingShim />,
     }),
-    "mpm-fluid": dynamic(() => import("./experiments/mpm-fluid"), {
+    fourier: dynamic(() => import("./experiments/fourier"), {
         ssr: false,
         loading: () => <LoadingShim />,
     }),

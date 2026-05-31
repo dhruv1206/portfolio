@@ -48,7 +48,15 @@ async function canvasVariance(page) {
     });
 }
 
-const SLUGS = ["wave-equation", "verlet-cloth", "n-body", "reaction-diffusion"];
+const SLUGS = [
+    "wave-equation",
+    "verlet-cloth",
+    "n-body",
+    "double-pendulum",
+    "boids",
+    "attractor",
+    "fourier",
+];
 
 async function main() {
     const browser = await chromium.launch({ headless: true });
