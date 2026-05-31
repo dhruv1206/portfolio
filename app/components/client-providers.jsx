@@ -58,7 +58,12 @@ function ClientProvidersInner({ children }) {
             {/* Loading Screen */}
             <LoadingScreen />
 
-            {/* Fluid Cursor (behind everything) */}
+            {/* Fluid Cursor (soft violet glow, behind everything). The
+                effect is preserved, but the implementation was rebuilt to
+                be cheap: softness is baked into per-particle radial
+                gradients instead of a full-viewport `filter: blur(30px)`
+                recomputed every frame, and its rAF loop is gated so it
+                stops entirely once the trail fades (zero idle cost). */}
             <FluidCursor opacity={0.03} />
 
             {/* Custom Cursor (on top) */}
