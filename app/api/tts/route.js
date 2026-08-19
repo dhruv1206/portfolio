@@ -67,6 +67,11 @@ export async function GET(req) {
                 // again on re-runs; 1 hour cache is plenty for a portfolio
                 // demo and gives us free immediate replay.
                 "cache-control": "public, max-age=3600",
+                // `max-age` alone only reaches the browser — the CDN needs
+                // its own directive or every visitor pays a fresh round
+                // trip to Google. Set only on the success path: a cached
+                // 502 would pin the failure at the edge until next deploy.
+                "Vercel-CDN-Cache-Control": "public, s-maxage=31536000",
             },
         });
     } catch (err) {

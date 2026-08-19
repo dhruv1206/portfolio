@@ -125,6 +125,16 @@ export async function GET(request) {
             {
                 width: 1200,
                 height: 630,
+                headers: {
+                    // Rendering this PNG costs ~1-2s, and the output is a
+                    // pure function of the query string — so let the edge
+                    // hold it indefinitely (a deploy purges the CDN, so a
+                    // redesign still ships immediately). Browsers get a
+                    // day, since a deploy can't purge *their* copies and
+                    // social crawlers keep theirs for a long time anyway.
+                    "Vercel-CDN-Cache-Control": "public, s-maxage=31536000",
+                    "Cache-Control": "public, max-age=86400, no-transform",
+                },
             }
         );
     } catch (error) {

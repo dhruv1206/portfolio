@@ -1,4 +1,5 @@
 import { GoogleTagManager } from "@next/third-parties/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Footer from "./components/footer";
@@ -116,6 +117,12 @@ export default function RootLayout({ children }) {
 
                 {/* Google Tag Manager */}
                 <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM} />
+
+                {/* Real-user Core Web Vitals, reported to Vercel. Loads
+                    after hydration, so it does not compete with the
+                    metrics it measures. Free on Hobby, but it collects
+                    nothing until Speed Insights is enabled on the project. */}
+                <SpeedInsights />
             </body>
         </html>
     );

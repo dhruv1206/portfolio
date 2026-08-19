@@ -70,7 +70,10 @@ const nextConfig = {
     async headers() {
         return [
             {
-                source: "/:all*(svg|jpg|png|webp|avif)",
+                // `jpeg` is spelled out: the suffix match is literal, so a
+                // `jpg` alternative does not cover `profile.jpeg` — which
+                // was shipping with `max-age=0, must-revalidate`.
+                source: "/:all*(svg|jpg|jpeg|png|webp|avif|gif|ico)",
                 headers: [
                     {
                         key: "Cache-Control",
