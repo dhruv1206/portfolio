@@ -29,14 +29,14 @@ export const metadata = {
     ],
     authors: [{ name: personalData.name }],
     creator: personalData.name,
-    metadataBase: new URL("https://dhruvagrawal.dev"),
+    metadataBase: new URL("https://dhruuv.me"),
     alternates: {
         canonical: "/",
     },
     openGraph: {
         type: "website",
         locale: "en_US",
-        url: "https://dhruvagrawal.dev",
+        url: "https://dhruuv.me",
         title: `${personalData.name} | ${personalData.designation}`,
         description: `Specializing in System Design, NLP, and High-Performance Backends. Building scalable applications and solving complex problems.`,
         siteName: `${personalData.name} Portfolio`,
