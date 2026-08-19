@@ -62,7 +62,7 @@ function NodeShape({ node }) {
                     textAnchor="middle"
                     dy={4}
                     fill="#fff"
-                    fontSize={14}
+                    fontSize={17}
                     fontWeight={600}
                     style={{
                         fontFamily:
@@ -87,7 +87,7 @@ function NodeShape({ node }) {
                 textAnchor="middle"
                 dy={r + 16}
                 fill="rgba(229,231,235,0.85)"
-                fontSize={12}
+                fontSize={17}
                 style={{
                     fontFamily: "ui-monospace, monospace",
                 }}
@@ -221,7 +221,7 @@ export default function AnimatedArchitecture({
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={fadeTransition}
-                    className="absolute bottom-3 left-4 right-4 text-[12px] md:text-[13px] font-mono text-gray-400 leading-relaxed"
+                    className="absolute bottom-2 left-2 right-2 text-[12px] md:text-[13px] font-mono text-gray-300 leading-relaxed bg-[#06061a]/80 backdrop-blur-sm rounded-md px-2.5 py-1.5"
                 >
                     {activeState.caption}
                 </motion.div>

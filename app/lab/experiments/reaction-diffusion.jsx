@@ -39,7 +39,9 @@ export default function ReactionDiffusion() {
     const reduced = usePrefersReducedMotion();
     const [preset, setPreset] = useState("coral");
     const presetRef = useRef(preset);
-    presetRef.current = preset;
+    useEffect(() => {
+        presetRef.current = preset;
+    }, [preset]);
 
     useEffect(() => {
         const canvas = canvasRef.current;

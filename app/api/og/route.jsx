@@ -1,4 +1,4 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 
 // Note: edge runtime would conflict with `cacheComponents: true` in
 // next.config.js (Next 16). Vercel OG runs fine on the default Node

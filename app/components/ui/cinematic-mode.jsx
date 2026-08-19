@@ -32,9 +32,6 @@ const CinematicMode = () => {
     // Only show on homepage
     const isMainPage = pathname === "/" || pathname.startsWith("/#");
 
-    // Calculate total duration
-    const totalDuration = CAMERA_PATH.reduce((acc, p) => acc + p.duration, 0);
-
     // Start cinematic mode
     const startCinematic = useCallback(async () => {
         setIsActive(true);
@@ -138,7 +135,7 @@ const CinematicMode = () => {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         onClick={startCinematic}
-                        className="fixed top-1/2 -translate-y-1/2 right-4 z-50 px-4 py-3 
+                        className="hidden lg:block fixed top-1/2 -translate-y-1/2 right-4 z-50 px-4 py-3
                             bg-gradient-to-b from-dark-800/90 to-dark-900/90 backdrop-blur-sm
                             border border-violet-500/30 rounded-lg shadow-lg
                             hover:border-violet-500/50 hover:shadow-violet-500/20

@@ -46,7 +46,7 @@ export default function AudioPrompt() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 16, scale: 0.96 }}
                     transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                    className="fixed bottom-6 left-6 z-[90] max-w-[300px]"
+                    className="hidden lg:block fixed bottom-6 left-6 z-[90] max-w-[300px]"
                     role="dialog"
                     aria-label="Enable ambient sound"
                     data-audio-prompt

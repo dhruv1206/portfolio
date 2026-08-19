@@ -113,7 +113,7 @@ function Experience() {
         <section
             ref={sectionRef}
             id="experience"
-            className="relative py-24 lg:py-32"
+            className="relative py-16 sm:py-24 lg:py-32"
         >
             {/* Background decoration */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">

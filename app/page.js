@@ -26,7 +26,12 @@ export default async function Home() {
     const blogs = await getBlogs();
 
     return (
-        <>
+        // overflow-x-clip contains the sections' decorative blur-blobs
+        // (several use negative offsets like -right-40 that otherwise
+        // bleed past the viewport and cause horizontal scroll on mobile).
+        // `clip` (not `hidden`) is used deliberately: it doesn't establish
+        // a scroll container, so it can't break `position: sticky`.
+        <div className="overflow-x-clip">
             <HeroSection />
             <AboutSection />
             <Experience />
@@ -35,6 +40,6 @@ export default async function Home() {
             <Education />
             <Blog blogs={blogs} />
             <ContactSection />
-        </>
+        </div>
     );
 }

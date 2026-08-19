@@ -13,7 +13,7 @@ const stats = [
 
 function AboutSection() {
     return (
-        <section id="about" className="relative py-24 lg:py-32">
+        <section id="about" className="relative py-16 sm:py-24 lg:py-32">
             {/* Background decoration */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-violet-500/10 rounded-full blur-[100px]" />

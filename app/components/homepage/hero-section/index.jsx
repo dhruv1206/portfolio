@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { personalData } from "@/utils/data/personal-data";
 import { useMounted } from "@/app/hooks/use-mounted";
+import { useFeatureSupport } from "@/app/hooks/use-feature-support";
 import MagneticButton from "../../ui/magnetic-button";
 import { BsGithub, BsLinkedin } from "react-icons/bs";
 import { SiLeetcode } from "react-icons/si";
@@ -38,6 +39,12 @@ const socialLinks = [
 function HeroSection() {
     const mounted = useMounted();
     const containerRef = useRef(null);
+    // The WebGPU particle name is a desktop-only delight: on phones it's a
+    // perf risk and needs a secure context. On mobile we render the name
+    // as plain text instead (see the name block below).
+    const isDesktop = useFeatureSupport(
+        () => window.matchMedia("(min-width: 1024px)").matches,
+    );
 
     // Text animation variants
     const containerVariants = {
@@ -79,7 +86,7 @@ function HeroSection() {
                 root layout) so it lives and unmounts with the hero
                 section — no need to render particles on /blog or
                 /projects/[slug] pages. */}
-            {mounted && <ParticleHeroWebGPU />}
+            {mounted && isDesktop && <ParticleHeroWebGPU />}
 
             {/* Background decorative blobs — useful even when particles
                 are active (subtle ambient colour under the field). */}
@@ -94,7 +101,7 @@ function HeroSection() {
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
-                    className="order-2 lg:order-1 flex flex-col"
+                    className="lg:order-1 flex flex-col"
                 >
                     {/* Greeting */}
                     <motion.p
@@ -109,34 +116,26 @@ function HeroSection() {
                         {firstName} {lastName}
                     </h1>
 
-                    {/* Layout-only twins of the original typography. The
-                        WebGPU particle layer reads these elements'
-                        bounding rects to sample text targets, so the
-                        particle "letters" land exactly where the original
-                        text sat. `visibility: hidden` keeps them in flow
-                        (so the rest of the column slots under correctly)
-                        while removing them from the paint pass — the
-                        particle layer does the visible rendering. */}
-                    <div
-                        aria-hidden="true"
-                        className="mb-2"
-                        style={{ visibility: "hidden" }}
-                    >
+                    {/* The name. On mobile it renders as real text (crisp
+                        + cheap). On lg+ the WebGPU particle layer reads
+                        these elements' bounding rects to place its
+                        "letters" exactly here, so we make them `invisible`
+                        there — kept in flow for layout + rect sampling,
+                        removed from paint (the particles do the visible
+                        rendering). aria-hidden because the semantic name
+                        lives in the sr-only <h1> above. */}
+                    <div aria-hidden="true" className="mb-2">
                         <div
                             id="hero-name-line-0"
-                            className="font-display font-bold text-display-xl leading-none tracking-tighter"
+                            className="font-display font-bold text-display-xl leading-none tracking-tighter gradient-text lg:invisible"
                         >
                             {firstName}
                         </div>
                     </div>
-                    <div
-                        aria-hidden="true"
-                        className="mb-6"
-                        style={{ visibility: "hidden" }}
-                    >
+                    <div aria-hidden="true" className="mb-6">
                         <div
                             id="hero-name-line-1"
-                            className="font-display font-bold text-display-lg leading-none tracking-tighter"
+                            className="font-display font-bold text-display-lg leading-none tracking-tighter text-white lg:invisible"
                         >
                             {lastName}
                         </div>
@@ -192,7 +191,7 @@ function HeroSection() {
                         variants={itemVariants}
                         className="flex items-center gap-4"
                     >
-                        {socialLinks.map((social, index) => (
+                        {socialLinks.map((social) => (
                             <motion.div
                                 key={social.label}
                                 whileHover={{ scale: 1.1, y: -2 }}
@@ -221,7 +220,7 @@ function HeroSection() {
                         delay: 0.5,
                         ease: [0.4, 0, 0.2, 1],
                     }}
-                    className="order-1 lg:order-2 relative h-[350px] md:h-[450px] lg:h-[500px]"
+                    className="hidden lg:block lg:order-2 relative lg:h-[500px]"
                 >
                     {mounted && <SystemTopology />}
                 </motion.div>
