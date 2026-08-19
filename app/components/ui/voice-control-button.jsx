@@ -19,7 +19,6 @@ const VoiceControlButton = () => {
         matchFailed,
         agentResponse,
         toggleListening,
-        startListening,
         pauseRecognition,
         resumeRecognition,
     } = useVoiceCommands();
@@ -28,7 +27,6 @@ const VoiceControlButton = () => {
         isSupported: ttsSupported,
         isSpeaking,
         speakAction,
-        speakHelp,
         speak,
         onSpeakStart,
         onSpeakEnd,
@@ -337,7 +335,7 @@ const VoiceControlButton = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 300, damping: 26 }}
-                        className="pointer-events-auto absolute bottom-20 right-0 w-60 glass-card p-3 shadow-2xl shadow-violet-500/10"
+                        className="hidden lg:block pointer-events-auto absolute bottom-20 right-0 w-60 glass-card p-3 shadow-2xl shadow-violet-500/10"
                         data-voice-onboarding
                     >
                         <p className="text-sm text-gray-200 font-medium leading-snug">

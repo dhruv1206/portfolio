@@ -97,7 +97,7 @@ export default function CaseStudyPage({ project }) {
     const hasCinema = !!chapterData;
 
     return (
-        <article className="relative py-24 lg:py-32">
+        <article className="relative py-24 lg:py-32 overflow-x-clip">
             {/* Back button */}
             <motion.div
                 initial={{ opacity: 0, x: -20 }}

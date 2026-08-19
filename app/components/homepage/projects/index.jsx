@@ -13,7 +13,7 @@ const getProjectSize = (index) => {
 
 const Projects = () => {
     return (
-        <section id="projects" className="relative py-24 lg:py-32">
+        <section id="projects" className="relative py-16 sm:py-24 lg:py-32">
             {/* Background decoration */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 <div className="absolute top-1/4 -left-32 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl" />

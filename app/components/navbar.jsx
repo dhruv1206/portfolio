@@ -21,7 +21,6 @@ function Navbar() {
     const [scrolled, setScrolled] = useState(false);
     const [activeSection, setActiveSection] = useState("");
     const [hidden, setHidden] = useState(false);
-    const [lastScrollY, setLastScrollY] = useState(0);
 
     // Audio mute state
     let isMuted = true;
@@ -35,46 +34,44 @@ function Navbar() {
     }
 
     useEffect(() => {
-        const handleScroll = () => {
-            const currentScrollY = window.scrollY;
+        // rAF-throttled so all work (including the offsetTop/offsetHeight
+        // layout reads for active-section detection) happens at most once
+        // per frame instead of on every scroll event — the old version
+        // also re-bound the listener on every scroll via a `lastScrollY`
+        // state dep, compounding the thrash. setScrolled/setHidden no-op
+        // when unchanged, so per-frame calls are cheap.
+        let ticking = false;
+        let lastY = window.scrollY;
 
-            // Toggle glassmorphism effect
-            setScrolled(currentScrollY > 50);
+        const update = () => {
+            ticking = false;
+            const y = window.scrollY;
+            setScrolled(y > 50);
+            setHidden(y > lastY && y > 200);
+            lastY = y;
 
-            // Hide/show on scroll direction
-            if (currentScrollY > lastScrollY && currentScrollY > 200) {
-                setHidden(true);
-            } else {
-                setHidden(false);
-            }
-
-            setLastScrollY(currentScrollY);
-
-            // Active section detection
-            const sections = navLinks.map((link) =>
-                document.querySelector(link.href)
-            );
-            const scrollPosition = window.scrollY + 200;
-
-            sections.forEach((section) => {
-                if (section) {
-                    const sectionTop = section.offsetTop;
-                    const sectionHeight = section.offsetHeight;
-                    const sectionId = section.getAttribute("id");
-
-                    if (
-                        scrollPosition >= sectionTop &&
-                        scrollPosition < sectionTop + sectionHeight
-                    ) {
-                        setActiveSection(`#${sectionId}`);
-                    }
+            const pos = y + 200;
+            for (const link of navLinks) {
+                const el = document.querySelector(link.href);
+                if (!el) continue;
+                const top = el.offsetTop;
+                if (pos >= top && pos < top + el.offsetHeight) {
+                    setActiveSection(link.href);
+                    break;
                 }
-            });
+            }
         };
 
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, [lastScrollY]);
+        const onScroll = () => {
+            if (!ticking) {
+                ticking = true;
+                requestAnimationFrame(update);
+            }
+        };
+
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
 
     const handleLinkClick = () => {
         setIsOpen(false);

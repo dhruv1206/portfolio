@@ -7,7 +7,7 @@ import { BsCalendar, BsBuilding } from "react-icons/bs";
 
 function Education() {
   return (
-    <section id="education" className="relative py-24 lg:py-32">
+    <section id="education" className="relative py-16 sm:py-24 lg:py-32">
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-pink-500/5 rounded-full blur-[100px]" />

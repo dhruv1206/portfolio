@@ -411,6 +411,17 @@ export default function ParticleHeroWebGPU() {
       window.addEventListener("resize", handleResize);
       window.addEventListener("scroll", handleScroll, { passive: true });
 
+      // Speed→colour palette, precomputed once so the hot draw loop
+      // doesn't allocate a fresh rgba() string per particle per frame.
+      const PALETTE = [];
+      for (let s = 0; s <= 16; s++) {
+        const t = s / 16;
+        const r = Math.round(139 + (6 - 139) * t);
+        const g = Math.round(92 + (182 - 92) * t);
+        const b = Math.round(246 + (212 - 246) * t);
+        PALETTE.push(`rgba(${r},${g},${b},0.45)`);
+      }
+
       let last = performance.now();
       const draw = () => {
         if (disposed) return;
@@ -447,10 +458,7 @@ export default function ParticleHeroWebGPU() {
           const speed = Math.min(Math.sqrt(p.vx * p.vx + p.vy * p.vy) / 200, 1);
           ctx.beginPath();
           ctx.arc(p.x, p.y, 1.2 * dpr, 0, Math.PI * 2);
-          const r = Math.round(139 + (6 - 139) * speed);
-          const g = Math.round(92 + (182 - 92) * speed);
-          const b = Math.round(246 + (212 - 246) * speed);
-          ctx.fillStyle = `rgba(${r},${g},${b},0.45)`;
+          ctx.fillStyle = PALETTE[(speed * 16) | 0];
           ctx.fill();
         }
         rafRef.current = requestAnimationFrame(draw);
