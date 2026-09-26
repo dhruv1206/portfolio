@@ -201,6 +201,14 @@ const INTENT_TOKENS = [
     { tokens: ["project", "frontend"], action: "filter-frontend", priority: 15 },
     { tokens: ["project"], action: "show-projects", priority: 5 },
     { tokens: ["contact"], action: "go-contact", priority: 10 },
+    { tokens: ["control", "room"], action: "go-room", priority: 15 },
+    { tokens: ["room"], action: "go-room", priority: 8 },
+    { tokens: ["lab"], action: "go-lab", priority: 12 },
+    { tokens: ["experiment"], action: "go-lab", priority: 10 },
+    { tokens: ["recruiter"], action: "go-recruiter", priority: 12 },
+    { tokens: ["resume"], action: "go-recruiter", priority: 8 },
+    { tokens: ["blog"], action: "go-blog", priority: 10 },
+    { tokens: ["article"], action: "go-blog", priority: 8 },
     { tokens: ["home", "top"], action: "go-home", priority: 10 },
     { tokens: ["home"], action: "go-home", priority: 5 },
     { tokens: ["about"], action: "go-about", priority: 10 },
@@ -503,77 +511,65 @@ export function useVoiceCommands() {
         commandCooldownRef.current = true;
         setTimeout(() => { commandCooldownRef.current = false; }, COMMAND_COOLDOWN_MS);
         
+        // The homepage is six stages: #s0 name, #s1 people, #s2 systems,
+        // #s3 machines, #s4 stack, #s5 contact. Other targets are routes.
+        const goStage = (id) => {
+            if (window.location.pathname !== "/") router.push(`/#${id}`);
+            else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+        };
+        const focusIn = (selector, prefill) => setTimeout(() => {
+            const el = document.querySelector(selector);
+            if (!el) return;
+            el.focus();
+            if (prefill && !el.value) el.value = prefill;
+        }, window.location.pathname === "/" ? 500 : 900);
         switch (action) {
             case "filter-backend":
-                router.push("/#projects");
-                setTimeout(() => document.querySelector('[data-filter="backend"]')?.click(), 300);
-                break;
             case "filter-frontend":
-                if (window.location.pathname !== "/") router.push("/#projects");
-                else document.getElementById("projects")?.scrollIntoView({ behavior: "smooth" });
-                setTimeout(() => document.querySelector('[data-filter="frontend"]')?.click(), 300);
-                break;
             case "show-projects":
-                if (window.location.pathname !== "/") router.push("/#projects");
-                else document.getElementById("projects")?.scrollIntoView({ behavior: "smooth" });
+                router.push("/projects");
                 break;
             case "go-contact":
-                if (window.location.pathname !== "/") router.push("/#contact");
-                else document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+                goStage("s5");
                 break;
             case "go-contact-focus":
-                if (window.location.pathname !== "/") {
-                    router.push("/#contact");
-                    setTimeout(() => document.querySelector('#contact input[name="name"]')?.focus(), 800);
-                } else {
-                    document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
-                    setTimeout(() => document.querySelector('#contact input[name="name"]')?.focus(), 500);
-                }
+                goStage("s5");
+                focusIn('#s5 input[name="name"]');
                 break;
             case "go-contact-inquiry":
-                if (window.location.pathname !== "/") {
-                    router.push("/#contact");
-                    setTimeout(() => {
-                        const msgField = document.querySelector('#contact textarea[name="message"]');
-                        if (msgField) {
-                            msgField.focus();
-                            msgField.value = "Project Inquiry: ";
-                        }
-                    }, 800);
-                } else {
-                    document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
-                    setTimeout(() => {
-                        const msgField = document.querySelector('#contact textarea[name="message"]');
-                        if (msgField) {
-                            msgField.focus();
-                            msgField.value = "Project Inquiry: ";
-                        }
-                    }, 500);
-                }
+                goStage("s5");
+                focusIn('#s5 textarea[name="message"]', "Project inquiry: ");
                 break;
             case "go-home":
-                // if not on home page:
-                if (window.location.pathname !== "/") {
-                    router.push("/");
-                } else {
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                }
+                if (window.location.pathname !== "/") router.push("/");
+                else window.scrollTo({ top: 0, behavior: "smooth" });
                 break;
             case "go-about":
-                if (window.location.pathname !== "/") router.push("/#about");
-                else document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
+                goStage("s1");
                 break;
             case "go-skills":
-                if (window.location.pathname !== "/") router.push("/#skills");
-                else document.getElementById("skills")?.scrollIntoView({ behavior: "smooth" });
+                goStage("s4");
                 break;
             case "go-experience":
-                if (window.location.pathname !== "/") router.push("/#experience");
-                else document.getElementById("experience")?.scrollIntoView({ behavior: "smooth" });
+                goStage("s2");
                 break;
-            case "go-education":
-                if (window.location.pathname !== "/") router.push("/#education");
-                else document.getElementById("education")?.scrollIntoView({ behavior: "smooth" });
+            case "go-education": {
+                const footer = document.querySelector("footer");
+                if (footer) footer.scrollIntoView({ behavior: "smooth" });
+                else router.push("/");
+                break;
+            }
+            case "go-room":
+                router.push("/room");
+                break;
+            case "go-lab":
+                router.push("/lab");
+                break;
+            case "go-recruiter":
+                router.push("/r");
+                break;
+            case "go-blog":
+                router.push("/blog");
                 break;
             case "scroll-bottom":
                 window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
@@ -593,8 +589,7 @@ export function useVoiceCommands() {
                 window.open("https://github.com/dhruv1206", "_blank");
                 break;
             case "toggle-theme":
-                // Theme toggle would be implemented here
-                toast.info("Theme toggle coming soon!");
+                toast.info("This site has one theme.");
                 break;
             case "copy-email":
                 navigator.clipboard.writeText("agrawaldhruv1006@gmail.com");
@@ -614,10 +609,7 @@ export function useVoiceCommands() {
                     const slug = action.replace("project:", "");
                     router.push(`/projects/${slug}`);
                 } else if (action.startsWith("filter-tech:")) {
-                    const tech = action.replace("filter-tech:", "");
-                    document.getElementById("projects")?.scrollIntoView({ behavior: "smooth" });
-                    // Would trigger tech filter here
-                    toast.info(`Showing ${tech} projects`);
+                    router.push("/projects");
                 }
         }
     }, [router]);

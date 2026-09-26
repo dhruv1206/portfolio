@@ -45,16 +45,21 @@ function selectBestVoice(voices) {
 
 export const ACTION_SCRIPTS = {
     // Navigation
-    "show-projects": "Displaying project portfolio.",
-    "filter-backend": "Isolating backend infrastructure projects.",
-    "filter-frontend": "Filtering frontend implementations.",
-    "go-contact": "Opening communication channel.",
-    "go-contact-focus": "Contact interface ready. Please state your inquiry.",
-    "go-home": "Returning to command center.",
-    "go-about": "Accessing personnel dossier.",
-    "go-skills": "Loading technical capabilities matrix.",
-    "go-experience": "Displaying career trajectory.",
-    "go-education": "Academic credentials on screen.",
+    "show-projects": "Opening the projects.",
+    "filter-backend": "Opening the projects.",
+    "filter-frontend": "Opening the projects.",
+    "go-contact": "Opening the contact section.",
+    "go-contact-focus": "Contact form ready.",
+    "go-contact-inquiry": "Contact form ready.",
+    "go-home": "Going home.",
+    "go-about": "Going to the numbers.",
+    "go-skills": "Going to the stack.",
+    "go-experience": "Going to the systems I have run.",
+    "go-education": "Going to the ledger.",
+    "go-room": "Opening the control room.",
+    "go-lab": "Opening the lab.",
+    "go-recruiter": "Opening recruiter mode.",
+    "go-blog": "Opening the blog.",
     
     // Scroll
     "scroll-down": "Navigating to lower sectors.",
@@ -69,7 +74,7 @@ export const ACTION_SCRIPTS = {
     // Actions
     "copy-email": "Contact coordinates copied to clipboard.",
     "open-github": "Accessing source repository.",
-    "toggle-theme": "Interface visual mode switched.",
+    "toggle-theme": "This site has one theme.",
     "stop": "Voice navigation suspended.",
     
     // System

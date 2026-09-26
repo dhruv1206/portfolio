@@ -63,7 +63,7 @@ function ScenarioView() {
             <div className={styles.ch}><span>{sc.org}{sc.year ? " · " + sc.year : ""} · replaying</span><b>{sc.title}</b></div>
             <p>{sc.intro}</p>
             <ol className={styles.steps}>{sc.steps.map((step, i) => <li key={step.label} className={i < st.step ? styles.done : i === st.step ? styles.cur : ""}><b>{step.label}</b><span>{step.caption}</span></li>)}</ol>
-            <div className={styles.row}><button type="button" className={styles.btn} onClick={() => ctl.nextStep()}>{done ? "Done" : "Next: " + sc.steps[st.step].label}</button><button type="button" className={cx(styles.btn, styles.ghost)} onClick={() => ctl.stopScenario()}>Stop</button></div>
+            <div className={styles.row}><button type="button" className={styles.btn} disabled={!!s.trace?.running} onClick={() => ctl.nextStep()}>{done ? "Done" : s.trace?.running ? "Tracing… wait for it" : "Next: " + sc.steps[st.step].label}</button><button type="button" className={cx(styles.btn, styles.ghost)} onClick={() => ctl.stopScenario()}>Stop</button></div>
             <div className={styles.live}>
                 {sc.metrics.includes("p99") && <div><span>p99 at start</span><b>{st.p99Start != null ? fmt(st.p99Start) + " ms" : "measuring…"}</b></div>}
                 {sc.metrics.map((k) => { const v = LIVE[k](m, s.replicas.workers); return <div key={k}><span>{v[0]}</span><b>{v[1]}</b></div>; })}

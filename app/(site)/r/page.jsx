@@ -11,6 +11,7 @@ export const metadata = {
     title: "Recruiter mode",
     description: "Defendable career numbers and a paste-a-JD role-fitter that says in 30 seconds whether I am the right hire, with a tailored PDF.",
     alternates: { canonical: "/r" },
+    openGraph: { images: [{ url: "/api/og?title=Recruiter%20mode&sub=Defendable%20career%20numbers%20and%20a%20paste-a-JD%20fit%20score%20with%20a%20tailored%20PDF.%20Reads%20in%2060%20seconds.&path=/r", width: 1200, height: 630 }] },
     robots: { index: true, follow: true },
 };
 

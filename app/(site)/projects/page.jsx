@@ -8,6 +8,7 @@ export const metadata = {
     title: "Projects",
     description: "Three case studies, each with a working demo: DStarDB's REPL in a Web Worker, a real WebRTC room, and the press-release pipeline running in the browser.",
     alternates: { canonical: "/projects" },
+    openGraph: { images: [{ url: "/api/og?title=Machines%20you%20can%20run&sub=Three%20case%20studies%2C%20each%20with%20a%20working%20demo%3A%20a%20REPL%2C%20a%20real%20WebRTC%20room%2C%20a%20pipeline%20in%20the%20tab.&path=/projects", width: 1200, height: 630 }] },
 };
 
 const DEMO = {

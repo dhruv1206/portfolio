@@ -104,12 +104,15 @@
 .tdhint { margin: 0; padding: 12px; font-size: 11.5px; line-height: 1.5; color: var(--mute); }
 
 /* ---------- caption, tip, toast ---------- */
-.caption { position: absolute; left: 50%; bottom: calc(var(--console) + 28px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 8px); z-index: 25; font-family: var(--fm); font-size: 12.5px; color: var(--ink); background: rgba(5, 5, 8, .9); border: 1px solid var(--line2); padding: 9px 14px; max-width: min(92vw, 720px); text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+.caption { position: absolute; left: 50%; bottom: calc(var(--console) + 28px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 8px); transition: opacity .25s, transform .25s, left .3s; z-index: 25; font-family: var(--fm); font-size: 12.5px; color: var(--ink); background: rgba(5, 5, 8, .9); border: 1px solid var(--line2); padding: 9px 14px; max-width: min(92vw, 720px); text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
 .captionShow { opacity: 1; transform: translate(-50%, 0); }
 .tip { position: absolute; z-index: 35; pointer-events: none; background: rgba(5, 5, 8, .94); border: 1px solid var(--line2); padding: 8px 10px; font-family: var(--fm); font-size: 10.5px; line-height: 1.5; color: var(--ink2); display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; max-width: 280px;
   b { grid-column: 1 / -1; color: var(--ink); font-weight: 500; font-size: 11.5px; } .tsub { grid-column: 1 / -1; color: var(--mute); margin-bottom: 3px; } i { font-style: normal; color: var(--mute); } em { font-style: normal; color: var(--ink); font-variant-numeric: tabular-nums; } u { grid-column: 1 / -1; text-decoration: none; color: var(--mute); margin-top: 4px; font-size: 9.5px; } }
 .toast { position: absolute; left: 50%; top: calc(var(--strip) + 14px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -6px); z-index: 50; font-family: var(--fm); font-size: 12px; color: var(--ink); background: var(--bg2); border: 1px solid var(--line2); padding: 10px 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: min(92vw, 560px); text-align: center; }
 .toastShow { opacity: 1; transform: translate(-50%, 0); }
+
+.root[data-trace="1"] .caption { left: calc(472px + (100% - 472px - 288px) / 2); max-width: min(100% - 472px - 288px - 24px, 720px); }
+@media (max-width: 820px) { .root[data-trace="1"] .caption { left: 50%; max-width: min(92vw, 720px); } }
 
 /* ---------- panel ---------- */
 .panel { position: absolute; top: calc(var(--strip) + 12px + env(safe-area-inset-top, 0px)); right: var(--gut); bottom: calc(var(--console) + 24px); width: min(460px, calc(100vw - 32px)); z-index: 28; background: rgba(7, 7, 12, .96); border: 1px solid var(--line2); transform: translateX(calc(100% + 24px)); transition: transform .35s cubic-bezier(.2, .7, .2, 1); overflow: auto; padding: 0 18px 22px; }
@@ -130,7 +133,7 @@
 .cardOn { border-color: var(--cyan); }
 .ch { margin-bottom: 8px; span { display: block; font-family: var(--fm); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); } b { display: block; font-family: var(--fd); font-weight: 600; font-size: 17px; letter-spacing: -.015em; line-height: 1.2; margin-top: 3px; } }
 .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.btn { display: inline-flex; align-items: center; gap: 8px; font-family: var(--fm); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 9px 12px; border: 1px solid var(--ink); color: var(--ink); background: none; &:hover { background: var(--ink); color: var(--bg); } }
+.btn { display: inline-flex; align-items: center; gap: 8px; font-family: var(--fm); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 9px 12px; border: 1px solid var(--ink); color: var(--ink); background: none; &:hover:not(:disabled) { background: var(--ink); color: var(--bg); } &:disabled { opacity: .45; cursor: default; } }
 .ghost { border-color: var(--line2); color: var(--ink2); &:hover { background: none; color: var(--ink); border-color: var(--ink); } }
 .danger { border-color: rgba(244, 114, 182, .6); color: var(--pink); &:hover { background: var(--pink); color: var(--bg); } }
 .jobrow { display: grid; grid-template-columns: 52px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line);

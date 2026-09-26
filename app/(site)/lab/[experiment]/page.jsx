@@ -11,7 +11,7 @@ export async function generateMetadata(props) {
     const params = await props.params;
     const exp = getExperiment(params.experiment);
     if (!exp) return { title: "Experiment not found" };
-    return { title: `${exp.title} · Lab`, description: exp.blurb, alternates: { canonical: `/lab/${exp.slug}` }, openGraph: { title: `${exp.title} · Lab`, description: exp.blurb } };
+    return { title: `${exp.title} · Lab`, description: exp.blurb, alternates: { canonical: `/lab/${exp.slug}` }, openGraph: { title: `${exp.title} · Lab`, description: exp.blurb, images: [{ url: `/api/og?title=${encodeURIComponent(exp.title)}&sub=${encodeURIComponent(exp.tagline)}&path=${encodeURIComponent("/lab/" + exp.slug)}&color=${encodeURIComponent(exp.accent)}`, width: 1200, height: 630 }] } };
 }
 
 export default async function ExperimentPage(props) {

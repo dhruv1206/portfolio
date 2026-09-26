@@ -28,7 +28,7 @@ export async function generateMetadata(props) {
             description: project.description.substring(0, 160),
             images: [
                 {
-                    url: `/api/og?title=${encodeURIComponent(project.name)}&color=${encodeURIComponent(project.accentColor || "#8b5cf6")}`,
+                    url: `/api/og?title=${encodeURIComponent(project.name)}&sub=${encodeURIComponent(project.description.split(". ")[0] + ".")}&path=${encodeURIComponent("/projects/" + project.slug)}&color=${encodeURIComponent(project.accentColor || "#22d3ee")}`,
                     width: 1200,
                     height: 630,
                 },

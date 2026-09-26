@@ -9,6 +9,7 @@ export const metadata = {
     title: "Control room",
     description: "A live, breakable model of the production systems I run. Kill a worker, partition the cache, watch it heal, then replay the incidents I actually fixed.",
     alternates: { canonical: "/room" },
+    openGraph: { images: [{ url: "/api/og?title=The%20control%20room&sub=A%20live%2C%20breakable%20model%20of%20the%20systems%20I%20run%3A%2024%20services%2C%20real%20queues%2C%20real%20timeouts%2C%20seven%20replayable%20incidents.&path=/room", width: 1200, height: 630 }] },
 };
 
 export default function RoomPage() {

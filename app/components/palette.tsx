@@ -37,7 +37,7 @@ export default function Palette() {
     const listRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const toggle = () => setOpen((o) => !o);
+        const toggle = () => setOpen((o) => { if (!o) returnTo.current = document.activeElement; return !o; });
         const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); toggle(); } };
         const onVoice = () => setVoice((v) => !v);
         window.addEventListener("cr:palette", toggle); window.addEventListener("keydown", onKey); window.addEventListener("cr:voice", onVoice);
@@ -84,7 +84,6 @@ export default function Palette() {
                             <span>⌘K</span>
                             <input
                                 autoFocus type="text" autoComplete="off" spellCheck={false} placeholder="Where to, or what to do…" aria-label="Command" value={q}
-                                onFocus={() => { if (!returnTo.current) returnTo.current = document.activeElement; }}
                                 onChange={(e) => { setQ(e.target.value); setSel(0); }} onKeyDown={onKey}
                             />
                             <button type="button" onClick={close}>esc</button>

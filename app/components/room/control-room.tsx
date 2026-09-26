@@ -46,7 +46,7 @@ export default function ControlRoom() {
     );
 }
 
-function Root({ children }: { children: ReactNode }) { const s = useSnapshot(); return <div className={styles.root} data-sheet={s.sheet}>{children}</div>; }
+function Root({ children }: { children: ReactNode }) { const s = useSnapshot(); return <div className={styles.root} data-sheet={s.sheet} data-trace={s.traceOpen && !s.railHidden ? "1" : "0"}>{children}</div>; }
 
 function Boot() {
     const s = useSnapshot(); const ctl = useRoom(); if (s.bootHidden) return null;

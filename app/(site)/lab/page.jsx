@@ -9,6 +9,7 @@ export const metadata = {
     title: "Lab",
     description: "Seven live, interactive experiments: a finite-difference wave solver, a Verlet cloth, n-body gravity, a double pendulum, boids, the Lorenz attractor and Fourier epicycles, all running in your browser.",
     alternates: { canonical: "/lab" },
+    openGraph: { images: [{ url: "/api/og?title=Live%20experiments&sub=Seven%20physics%20and%20numerical-methods%20simulations%2C%20integrated%20frame%20by%20frame%20in%20your%20browser.&path=/lab", width: 1200, height: 630 }] },
 };
 
 const TAG = { "#06b6d4": "tag-c", "#8b5cf6": "tag-v", "#f472b6": "tag-p" };

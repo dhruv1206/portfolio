@@ -40,14 +40,14 @@ export const metadata = {
         title: TITLE,
         description: DESCRIPTION,
         siteName: "dhruuv.me",
-        images: [{ url: "/og-image.png", width: 1200, height: 630, alt: TITLE }],
+        images: [{ url: "/api/og?title=Dhruv%20Agrawal&sub=Backend%20engineer%20%C2%B7%20MyRik%20%C2%B7%20Bengaluru%20%C2%B7%20the%20platforms%20I%20run%20serve%20150%2C000%20people%20a%20month&path=/", width: 1200, height: 630, alt: TITLE }],
     },
     twitter: {
         card: "summary_large_image",
         title: TITLE,
         description: DESCRIPTION,
         creator: "@dhruv_1206",
-        images: ["/og-image.png"],
+        images: ["/api/og?title=Dhruv%20Agrawal&sub=Backend%20engineer%20%C2%B7%20MyRik%20%C2%B7%20Bengaluru%20%C2%B7%20the%20platforms%20I%20run%20serve%20150%2C000%20people%20a%20month&path=/"],
     },
     robots: {
         index: true,

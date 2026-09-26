@@ -10,6 +10,7 @@ export const metadata = {
     title: "Blog",
     description: "Notes on backend systems, syndicated from dev.to.",
     alternates: { canonical: "/blog" },
+    openGraph: { images: [{ url: "/api/og?title=Notes%20from%20the%20backend&sub=Writing%20about%20the%20systems%20on%20this%20site%3A%20what%20broke%2C%20what%20the%20trace%20said%2C%20what%20shipped.&path=/blog", width: 1200, height: 630 }] },
 };
 
 async function getBlogs() {
