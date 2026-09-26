@@ -1,9 +1,10 @@
 "use client";
 
-// Site-only overlays, mounted by app/(site)/layout.jsx. Everything here
-// is client-only (cursor tracking, scroll listeners, Web Speech), so it
-// is loaded with `ssr: false` and kept out of the control room, which
-// uses the native cursor for grab and pinch gestures.
+// Site-only overlays, mounted by app/(site)/layout.jsx and, with
+// `quiet`, by app/(home)/layout.tsx. Everything here is client-only
+// (cursor tracking, scroll listeners, Web Speech), so it is loaded with
+// `ssr: false` and kept out of the control room at /room, which uses
+// the native cursor for grab and pinch gestures.
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
