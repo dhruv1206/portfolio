@@ -46,7 +46,10 @@ export class World {
         this.cv = canvas; const ctx = canvas.getContext("2d", { alpha: false }); if (!ctx) throw new Error("2d context unavailable"); this.ctx = ctx; this.sim = sim;
         this.reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     }
-    resize() { this.dpr = Math.min(2, window.devicePixelRatio || 1); const r = this.cv.getBoundingClientRect(); this.W = r.width; this.H = r.height; this.cv.width = Math.round(this.W * this.dpr); this.cv.height = Math.round(this.H * this.dpr); }
+    /* The schematic itself (grid, edges, node boxes and labels) only changes with the camera, so it is
+       drawn once into an offscreen canvas and blitted each frame; packets and live state draw on top. */
+    private staticCv: HTMLCanvasElement | null = null; private staticCtx: CanvasRenderingContext2D | null = null; private staticKey = "";
+    resize() { this.dpr = Math.min(1.5, window.devicePixelRatio || 1); const r = this.cv.getBoundingClientRect(); this.W = r.width; this.H = r.height; this.cv.width = Math.round(this.W * this.dpr); this.cv.height = Math.round(this.H * this.dpr); this.staticKey = ""; }
     /** The visible area is the viewport minus the UI insets; the camera centre is offset so the world centres inside it. */
     fit() { const { x0, y0, x1, y1 } = BOUNDS; const w = this.W - this.inset.left - this.inset.right, h = this.H - this.inset.top - this.inset.bottom; const s = Math.min(w / (x1 - x0), h / (y1 - y0)) * 0.95; this.tgt = { x: (x0 + x1) / 2 + (this.inset.right - this.inset.left) / 2 / s, y: (y0 + y1) / 2 + (this.inset.bottom - this.inset.top) / 2 / s, s }; if (this.reduced) this.cam = { ...this.tgt }; }
     focus(id: string, scale = 2.4) { const n = NODE_BY_ID[id]; if (!n) return; const s = scale; this.tgt = { x: n.x + (this.inset.right - this.inset.left) / 2 / s, y: n.y + n.h * 0.4 + (this.inset.bottom - this.inset.top) / 2 / s, s }; this.selected = id; if (this.reduced) this.cam = { ...this.tgt }; }
@@ -58,11 +61,15 @@ export class World {
 
     frame(realDt: number) { this.time += realDt; const k = this.reduced ? 1 : Math.min(1, (realDt / 1000) * 7); this.cam.x += (this.tgt.x - this.cam.x) * k; this.cam.y += (this.tgt.y - this.cam.y) * k; this.cam.s += (this.tgt.s - this.cam.s) * k; this.draw(); }
 
-    draw() {
-        const ctx = this.ctx, d = this.dpr, s = this.cam.s, sim = this.sim;
+    private drawStatic() {
+        const d = this.dpr, sim = this.sim, booted = (id: string) => this.nodeIndex.indexOf(id) < sim.bootIndex;
+        const key = [this.cam.x.toFixed(1), this.cam.y.toFixed(1), this.cam.s.toFixed(3), this.W, this.H, d, sim.bootIndex, this.highlight ? [...this.highlight].join(",") : ""].join("|");
+        if (key === this.staticKey && this.staticCv) return;
+        if (!this.staticCv) { this.staticCv = document.createElement("canvas"); this.staticCtx = this.staticCv.getContext("2d", { alpha: false }); }
+        const cv = this.staticCv, ctx = this.staticCtx as CanvasRenderingContext2D; if (cv.width !== this.cv.width || cv.height !== this.cv.height) { cv.width = this.cv.width; cv.height = this.cv.height; }
+        this.staticKey = key;
         ctx.setTransform(d, 0, 0, d, 0, 0); ctx.fillStyle = C.bg; ctx.fillRect(0, 0, this.W, this.H);
-        this.drawGrid(); const booted = (id: string) => this.nodeIndex.indexOf(id) < sim.bootIndex;
-        ctx.lineWidth = 1;
+        this.drawGrid(ctx); ctx.lineWidth = 1;
         for (const [a, b] of EDGES) {
             if (!booted(a) || !booted(b)) continue; const r = route(a, b); const ctl = CTL_EDGES.has(a + ">" + b); const hl = !!this.highlight && (this.highlight.has(a) || this.highlight.has(b));
             ctx.strokeStyle = ctl ? "rgba(139,92,246,0.22)" : hl ? "rgba(34,211,238,0.55)" : "rgba(242,242,247,0.16)"; ctx.setLineDash(ctl ? [2, 5] : []); ctx.beginPath();
@@ -70,6 +77,13 @@ export class World {
             const end = r.pts[r.pts.length - 1], prev = r.pts[r.pts.length - 2]; const [ex, ey] = this.w2s(end[0], end[1]); const ang = Math.atan2(end[1] - prev[1], end[0] - prev[0]);
             ctx.fillStyle = ctl ? "rgba(139,92,246,0.35)" : "rgba(242,242,247,0.35)"; ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - 6 * Math.cos(ang - 0.5), ey - 6 * Math.sin(ang - 0.5)); ctx.lineTo(ex - 6 * Math.cos(ang + 0.5), ey - 6 * Math.sin(ang + 0.5)); ctx.closePath(); ctx.fill();
         }
+        for (const n of NODES) { if (booted(n.id)) this.drawNodeStatic(ctx, n); }
+    }
+    draw() {
+        const ctx = this.ctx, d = this.dpr, s = this.cam.s, sim = this.sim;
+        this.drawStatic();
+        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(this.staticCv as HTMLCanvasElement, 0, 0); ctx.setTransform(d, 0, 0, d, 0, 0);
+        const booted = (id: string) => this.nodeIndex.indexOf(id) < sim.bootIndex;
         const now = sim.now;
         const dot = (x: number, y: number, r: number, col: string, alpha: number) => { const [sx, sy] = this.w2s(x, y); if (sx < -10 || sy < -10 || sx > this.W + 10 || sy > this.H + 10) return; ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.fillRect(sx - r, sy - r, r * 2, r * 2); ctx.globalAlpha = 1; };
         const psz = clamp(1.6 * s, 1.5, 4);
@@ -84,20 +98,29 @@ export class World {
         if (youPos) { const [sx, sy] = this.w2s(youPos[0], youPos[1]); ctx.font = "500 10px " + FONT; ctx.fillStyle = C.ink; ctx.fillText("you", sx + 8, sy - 6); }
         this.drawCursors();
     }
-    private drawGrid() { const ctx = this.ctx, s = this.cam.s; const step = 40 * s; if (step < 12) return; const [ox, oy] = this.w2s(0, 0); ctx.fillStyle = "rgba(242,242,247,0.10)"; const x0 = ((ox % step) + step) % step, y0 = ((oy % step) + step) % step; for (let x = x0; x < this.W; x += step) for (let y = y0; y < this.H; y += step) ctx.fillRect(x, y, 1, 1); }
+    private drawGrid(ctx: CanvasRenderingContext2D) { const s = this.cam.s; const step = 40 * s; if (step < 12) return; const [ox, oy] = this.w2s(0, 0); ctx.fillStyle = "rgba(242,242,247,0.10)"; const x0 = ((ox % step) + step) % step, y0 = ((oy % step) + step) % step; for (let x = x0; x < this.W; x += step) for (let y = y0; y < this.H; y += step) ctx.fillRect(x, y, 1, 1); }
+    /** Box, label and subtitle: part of the cached static layer. */
+    private drawNodeStatic(ctx: CanvasRenderingContext2D, n: NodeDef) {
+        const s = this.cam.s; const [cx, cy] = this.w2s(n.x, n.y); const w = n.w * s, h = n.h * s; const x = cx - w / 2, y = cy - h / 2;
+        if (x > this.W + 20 || y > this.H + 20 || x + w < -20 || y + h < -20) return;
+        const hl = !!this.highlight && this.highlight.has(n.id);
+        ctx.fillStyle = "rgba(5,5,8,0.92)"; ctx.fillRect(x, y, w, h); ctx.lineWidth = 1; ctx.strokeStyle = hl ? "rgba(34,211,238,0.9)" : KIND[n.kind] || KIND.svc; ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h));
+        const fs = clamp(10 * s, 9.5, 20); ctx.font = "500 " + fs + "px " + FONT; ctx.textBaseline = "alphabetic"; ctx.fillStyle = C.ink; ctx.fillText(n.label.toUpperCase(), x + (n.kind === "users" ? 8 : 12) * s, y + 11 * s + fs * 0.35);
+        if (s > 0.55 && n.id !== "pg" && n.id !== "workers" && n.id !== "ride") { const ss = clamp(8.5 * s, 8, 16); ctx.font = "400 " + ss + "px " + FONT; ctx.fillStyle = C.mute; ctx.fillText(n.sub, x + (n.kind === "users" ? 8 : 12) * s, y + h - 8 * s); }
+    }
+    /** Live state on top of the static box: status, utilisation, sparkline, queue, internals, hover and flash. */
     private drawNode(n: NodeDef) {
         const ctx = this.ctx, s = this.cam.s, sim = this.sim, st = sim.nodes[n.id]; const [cx, cy] = this.w2s(n.x, n.y); const w = n.w * s, h = n.h * s; const x = cx - w / 2, y = cy - h / 2;
         if (x > this.W + 20 || y > this.H + 20 || x + w < -20 || y + h < -20) return;
-        const hover = this.hover === n.id, sel = this.selected === n.id, hl = !!this.highlight && this.highlight.has(n.id);
+        const hover = this.hover === n.id, sel = this.selected === n.id;
         const down = !st.alive || (n.id === "cache" && !sim.cacheAlive) || st.replicas === 0; const util = st.util;
         const warn = util > 0.75 || st.queue.length > 3 || (n.id === "razorpay" && sim.now < sim.flags.slowUntil) || (n.id === "ride" && !sim.flags.rtdbMumbai) || (n.id === "pg" && !sim.flags.index);
-        ctx.fillStyle = "rgba(5,5,8,0.92)"; ctx.fillRect(x, y, w, h); ctx.lineWidth = hover || sel ? 1.5 : 1;
-        ctx.strokeStyle = down ? "rgba(244,114,182,0.9)" : hl ? "rgba(34,211,238,0.9)" : hover || sel ? "rgba(242,242,247,0.85)" : KIND[n.kind] || KIND.svc; ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h));
-        if (this.flash[n.id] && this.time < this.flash[n.id]) { ctx.strokeStyle = "rgba(244,114,182,0.6)"; ctx.strokeRect(x - 4, y - 4, w + 8, h + 8); }
-        const fs = clamp(10 * s, 9.5, 20); ctx.font = "500 " + fs + "px " + FONT; ctx.textBaseline = "alphabetic";
+        if (down || hover || sel) { ctx.lineWidth = hover || sel ? 1.5 : 1; ctx.strokeStyle = down ? "rgba(244,114,182,0.9)" : "rgba(242,242,247,0.85)"; ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h)); }
+        if (this.flash[n.id] && this.time < this.flash[n.id]) { ctx.lineWidth = 1; ctx.strokeStyle = "rgba(244,114,182,0.6)"; ctx.strokeRect(x - 4, y - 4, w + 8, h + 8); }
+        const fs = clamp(10 * s, 9.5, 20); ctx.textBaseline = "alphabetic";
         if (n.kind !== "users") { ctx.fillStyle = down ? C.pink : n.kind === "ctl" ? "rgba(242,242,247,0.35)" : warn ? C.amber : C.ok; ctx.fillRect(x + 6 * s, y + 7 * s, Math.max(2, 3 * s), Math.max(2, 3 * s)); }
-        ctx.fillStyle = down ? C.pink : C.ink; ctx.fillText(n.label.toUpperCase(), x + (n.kind === "users" ? 8 : 12) * s, y + 11 * s + fs * 0.35);
-        if (s > 0.55) { const ss = clamp(8.5 * s, 8, 16); ctx.font = "400 " + ss + "px " + FONT; ctx.fillStyle = C.mute; let sub = n.sub; if (n.id === "pg" && st.promoted) sub = "promoted replica"; if (n.id === "workers" || n.id === "ride") sub = n.sub + " · ×" + st.replicas + (st.provisioningUntil ? " +1…" : ""); ctx.fillText(sub, x + (n.kind === "users" ? 8 : 12) * s, y + h - 8 * s); }
+        if (down) { ctx.font = "500 " + fs + "px " + FONT; ctx.fillStyle = C.pink; ctx.fillText(n.label.toUpperCase(), x + 12 * s, y + 11 * s + fs * 0.35); }
+        if (s > 0.55 && (n.id === "pg" || n.id === "workers" || n.id === "ride")) { const ss = clamp(8.5 * s, 8, 16); ctx.font = "400 " + ss + "px " + FONT; ctx.fillStyle = C.mute; let sub = n.sub; if (n.id === "pg" && st.promoted) sub = "promoted replica"; if (n.id === "workers" || n.id === "ride") sub = n.sub + " · ×" + st.replicas + (st.provisioningUntil ? " +1…" : ""); ctx.fillText(sub, x + 12 * s, y + h - 8 * s); }
         if (n.kind !== "users" && n.kind !== "ctl") {
             const bw = (w - 16 * s) * clamp(util, 0, 1); ctx.fillStyle = util > 0.9 ? C.pink : util > 0.7 ? C.amber : "rgba(34,211,238,0.7)"; ctx.fillRect(x + 8 * s, y + h - 4 * s, bw, Math.max(1, 1.5 * s)); ctx.fillStyle = "rgba(242,242,247,0.08)"; ctx.fillRect(x + 8 * s + bw, y + h - 4 * s, w - 16 * s - bw, Math.max(1, 1.5 * s));
             if (s > 0.7) { const sw = 34 * s, sh = 9 * s, sx0 = x + w - sw - 8 * s, sy0 = y + 6 * s; ctx.strokeStyle = "rgba(242,242,247,0.45)"; ctx.lineWidth = 1; ctx.beginPath(); st.sparks.forEach((v, i) => { const px = sx0 + (i / (st.sparks.length - 1)) * sw, py = sy0 + sh - v * sh; if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); }); ctx.stroke(); }

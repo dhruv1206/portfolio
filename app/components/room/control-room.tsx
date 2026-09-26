@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import Link from "next/link";
 import styles from "./room.module.scss";
 import { RoomController, type RoomSnapshot } from "@/app/room/controller";
 import { ACTIONS } from "@/app/room/data";
@@ -66,14 +67,14 @@ function Strip() {
     const nav: { name: "about" | "work" | "projects" | "stack" | "contact" | "records"; label: string; opt?: boolean }[] = [{ name: "about", label: "About" }, { name: "work", label: "Work" }, { name: "projects", label: "Projects" }, { name: "stack", label: "Stack" }, { name: "contact", label: "Contact" }, { name: "records", label: "Records", opt: true }];
     return (
         <header className={styles.strip}>
-            <div className={styles.brand}><b>DA</b><span className={styles.name}>Dhruv Agrawal</span><span className={styles.role}>backend engineer · control room</span></div>
+            <Link className={styles.brand} href="/" title="Back to the homepage"><b>DA</b><span className={styles.name}>Dhruv Agrawal</span><span className={styles.role}>control room · back home ↖</span></Link>
             <div className={styles.health} data-h={s.health}><i /><span>{HEALTH_TXT[s.health]}</span></div>
             <nav className={styles.nav} aria-label="Sections">
                 {nav.map((n) => <button key={n.name} type="button" className={cx(s.panel?.name === n.name && "on", n.opt && "opt")} onClick={() => (s.panel?.name === n.name ? ctl.closePanel() : ctl.openPanel(n.name))}>{n.label}</button>)}
                 <button type="button" className="opt" onClick={() => (s.tour ? ctl.stopTour() : ctl.startTour())}>Tour</button>
                 <button type="button" className="opt" aria-pressed={s.sound} onClick={() => ctl.setSound(!s.sound)}>{s.sound ? "sound on" : "sound off"}</button>
                 <button type="button" className="k" onClick={() => window.dispatchEvent(new CustomEvent("cr:palette"))}><kbd>⌘K</kbd></button>
-                <a href="/r" className="opt" title="Plain document version">Read mode</a>
+                <Link href="/" className="opt" title="Back to the homepage">Home</Link>
             </nav>
         </header>
     );

@@ -14,7 +14,7 @@ const ScrollProgress = dynamic(() => import("./ui/scroll-progress"), { ssr: fals
 const VoiceControlButton = dynamic(() => import("./ui/voice-control-button"), { ssr: false });
 const AudioPrompt = dynamic(() => import("./ui/audio-prompt"), { ssr: false });
 
-export default function SiteChrome({ children }) {
+export default function SiteChrome({ children, quiet = false }) {
     // `body.site` scopes the custom-cursor rules in globals.scss so the
     // control room keeps the browser cursor.
     useEffect(() => {
@@ -27,8 +27,10 @@ export default function SiteChrome({ children }) {
             <FluidCursor opacity={0.03} />
             <CustomCursor />
             <ScrollProgress />
-            <VoiceControlButton />
-            <AudioPrompt />
+            {/* The homepage keeps its own rail and readout in these corners;
+                voice and the ambient prompt stay on the reading pages. */}
+            {!quiet && <VoiceControlButton />}
+            {!quiet && <AudioPrompt />}
             {children}
         </>
     );

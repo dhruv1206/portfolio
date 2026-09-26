@@ -2,10 +2,16 @@ import Link from "next/link";
 import RoomLoader from "@/app/components/room/room-loader";
 import { ABOUT, ROLES, SCENARIOS } from "@/app/room/data";
 
-// The homepage is a client-only application (canvas, simulation, Web
-// Audio), so the server renders a crawlable summary plus the boot
+// The control room is a client-only application (canvas, simulation,
+// Web Audio), so the server renders a crawlable summary plus the boot
 // title, and hands the viewport to the room once JavaScript loads.
-export default function HomePage() {
+export const metadata = {
+    title: "Control room · Dhruv Agrawal",
+    description: "A live, breakable model of the production systems I run. Kill a worker, partition the cache, watch it heal, then replay the incidents I actually fixed.",
+    alternates: { canonical: "/room" },
+};
+
+export default function RoomPage() {
     return (
         <main id="main-content" tabIndex={-1} className="outline-none">
             <section className="sr-only" aria-label="Summary">
