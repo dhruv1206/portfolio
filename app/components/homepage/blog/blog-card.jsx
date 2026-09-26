@@ -1,81 +1,25 @@
-"use client";
-
-import { timeConverter } from "@/utils/time-converter";
 import Image from "next/image";
 import Link from "next/link";
-import { BsHeartFill, BsClock } from "react-icons/bs";
-import { FaCommentAlt } from "react-icons/fa";
-import { MdArrowOutward } from "react-icons/md";
 
+// One article from dev.to, linking to the mirrored copy at /blog/[slug].
 function BlogCard({ blog }) {
-  return (
-    <article className="glass-card overflow-hidden group h-full flex flex-col">
-      {/* Image */}
-      <div className="relative h-48 overflow-hidden">
-        <Image
-          src={blog?.cover_image}
-          height={400}
-          width={600}
-          alt={blog?.title || "Blog cover"}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-900/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-        {/* Read time badge */}
-        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 bg-dark-900/80 backdrop-blur-sm rounded-full text-xs text-gray-300">
-          <BsClock size={10} />
-          <span>{blog.reading_time_minutes} min</span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-5 flex flex-col flex-1">
-        {/* Date and stats */}
-        <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
-          <span>{timeConverter(blog.published_at)}</span>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <BsHeartFill className="text-pink-500" size={12} />
-              {blog.public_reactions_count}
-            </span>
-            {blog.comments_count > 0 && (
-              <span className="flex items-center gap-1">
-                <FaCommentAlt className="text-cyan-500" size={10} />
-                {blog.comments_count}
-              </span>
+    const date = blog.published_at ? new Date(blog.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
+    const tags = Array.isArray(blog.tag_list) ? blog.tag_list : typeof blog.tag_list === "string" ? blog.tag_list.split(",").map((t) => t.trim()).filter(Boolean) : [];
+    return (
+        <Link href={`/blog/${blog.slug}`} className="cell" style={{ display: "flex", flexDirection: "column" }}>
+            {blog.cover_image && (
+                <div style={{ position: "relative", aspectRatio: "2 / 1", borderBottom: "1px solid var(--line)" }}>
+                    <Image src={blog.cover_image} alt="" fill sizes="(min-width: 960px) 30vw, (min-width: 600px) 50vw, 100vw" style={{ objectFit: "cover" }} />
+                </div>
             )}
-          </div>
-        </div>
-
-        {/* Title */}
-        <Link href={blog.url} target="_blank" rel="noopener noreferrer">
-          <h3 className="text-lg font-display font-semibold text-white group-hover:text-violet-300 transition-colors line-clamp-2 mb-2">
-            {blog.title}
-          </h3>
+            <div className="cell-h"><span>{date}</span>{blog.reading_time_minutes ? <span>{blog.reading_time_minutes} min read</span> : null}{typeof blog.public_reactions_count === "number" && blog.public_reactions_count > 0 && <span className="r">{blog.public_reactions_count} reactions</span>}</div>
+            <div className="cell-b" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+                <h2 className="rp-h3" style={{ margin: 0 }}>{blog.title}</h2>
+                <p className="rp-p" style={{ margin: 0, fontSize: 14, flex: 1 }}>{blog.description}</p>
+                <div className="btns"><span className="tags">{tags.slice(0, 4).map((t) => <span key={t} className="tag">{t}</span>)}</span><span className="rp-note" style={{ marginLeft: "auto", color: "var(--ink)" }}>Read →</span></div>
+            </div>
         </Link>
-
-        {/* Description */}
-        <p className="text-sm text-gray-400 line-clamp-2 flex-1">
-          {blog.description}
-        </p>
-
-        {/* Read more link */}
-        <Link
-          href={blog.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-1 text-sm text-violet-400 hover:text-violet-300 transition-colors group/link"
-        >
-          <span>Read Article</span>
-          <MdArrowOutward
-            size={14}
-            className="transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5"
-          />
-        </Link>
-      </div>
-    </article>
-  );
+    );
 }
 
 export default BlogCard;

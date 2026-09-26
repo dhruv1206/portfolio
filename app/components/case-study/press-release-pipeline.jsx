@@ -613,25 +613,21 @@ export default function PressReleasePipeline() {
     );
 
     return (
-        <div className="press-release-pipeline glass-card overflow-hidden">
+        <div className="press-release-pipeline demo-cell overflow-hidden">
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-black/30 font-mono text-xs">
-                <span className="flex gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-red-500/70" />
-                    <span className="w-3 h-3 rounded-full bg-yellow-500/70" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-500/70" />
-                </span>
-                <span className="text-gray-400 flex-1 text-center">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-black/30 font-mono text-xs">
+                <span className="text-cyan-400">▶</span>
+                <span className="text-gray-400 flex-1 text-left uppercase tracking-wider text-[11px]">
                     synth-ai-envoys · PIB press-release pipeline
                 </span>
                 <span className="text-emerald-400 inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="w-2 h-2  bg-emerald-400" />
                     {running ? "running" : "ready"}
                 </span>
             </div>
 
             {/* Input row */}
-            <div className="px-4 py-4 bg-[#06061a]/80 space-y-3">
+            <div className="px-4 py-4 bg-black/30 space-y-3">
                 <label className="block">
                     <span className="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">
                         Press-release title (English)
@@ -641,7 +637,7 @@ export default function PressReleasePipeline() {
                         onChange={(e) => setTitle(e.target.value)}
                         disabled={running}
                         maxLength={200}
-                        className="w-full bg-black/40 border border-white/10 rounded-md px-3 py-2 font-mono text-[13px] text-gray-100 placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60 disabled:opacity-60"
+                        className="w-full bg-black/40 border border-white/10  px-3 py-2 font-mono text-[13px] text-gray-100 placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60 disabled:opacity-60"
                     />
                 </label>
                 <label className="block">
@@ -654,7 +650,7 @@ export default function PressReleasePipeline() {
                         rows={4}
                         maxLength={1500}
                         disabled={running}
-                        className="w-full bg-black/40 border border-white/10 rounded-md px-3 py-2 font-mono text-[13px] text-gray-100 placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60 disabled:opacity-60"
+                        className="w-full bg-black/40 border border-white/10  px-3 py-2 font-mono text-[13px] text-gray-100 placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60 disabled:opacity-60"
                     />
                 </label>
                 <div className="flex items-center gap-3 flex-wrap">
@@ -666,7 +662,7 @@ export default function PressReleasePipeline() {
                             value={primaryLang}
                             onChange={(e) => setPrimaryLang(e.target.value)}
                             disabled={running}
-                            className="bg-black/40 border border-white/10 rounded-md px-2 py-1.5 font-mono text-sm text-gray-100 focus:outline-none focus:border-violet-500/60 disabled:opacity-60"
+                            className="bg-black/40 border border-white/10  px-2 py-1.5 font-mono text-sm text-gray-100 focus:outline-none focus:border-violet-500/60 disabled:opacity-60"
                         >
                             {PIB_LANGS.map((l) => (
                                 <option key={l.code} value={l.code}>
@@ -686,7 +682,7 @@ export default function PressReleasePipeline() {
                         disabled={
                             running || !title.trim() || !body.trim()
                         }
-                        className="ml-auto px-4 py-2 text-sm font-semibold rounded-md bg-violet-500/20 border border-violet-500/50 text-violet-100 hover:bg-violet-500/40 hover:border-violet-500/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="ml-auto px-4 py-2 text-sm font-semibold  bg-violet-500/20 border border-violet-500/50 text-violet-100 hover:bg-violet-500/40 hover:border-violet-500/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {running ? "Running pipeline…" : "Run pipeline"}
                     </button>
@@ -694,8 +690,8 @@ export default function PressReleasePipeline() {
             </div>
 
             {/* Stage list + canvas */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-0 border-t border-white/5">
-                <ol className="bg-[#06061a]/80 border-r border-white/5 p-4 space-y-3 font-mono text-[13px]">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-0 border-t border-white/10">
+                <ol className="bg-black/30 border-r border-white/10 p-4 space-y-3 font-mono text-[13px]">
                     {STAGES.map((s, i) => {
                         const st = stages[s.id];
                         return (
@@ -733,7 +729,7 @@ export default function PressReleasePipeline() {
                 </ol>
 
                 <div className="p-4 bg-[#02020a]/80 space-y-3">
-                    <div className="aspect-video rounded-md overflow-hidden border border-white/5 bg-black/60">
+                    <div className="aspect-video  overflow-hidden border border-white/10 bg-black/60">
                         <canvas
                             ref={canvasRef}
                             width={1280}
@@ -742,7 +738,7 @@ export default function PressReleasePipeline() {
                         />
                     </div>
                     {distribute && (
-                        <div className="p-3 rounded-md border border-emerald-500/30 bg-emerald-500/5 font-mono text-[12px] space-y-1">
+                        <div className="p-3  border border-emerald-500/30 bg-emerald-500/5 font-mono text-[12px] space-y-1">
                             <div className="text-emerald-300">
                                 ✓ uploaded · prId={distribute.prId}
                             </div>
@@ -760,7 +756,7 @@ export default function PressReleasePipeline() {
             </div>
 
             {/* Per-language translations grid */}
-            <div className="px-4 py-4 bg-[#06061a]/80 border-t border-white/5">
+            <div className="px-4 py-4 bg-black/30 border-t border-white/10">
                 <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-3">
                     Translated body · 10 PIB languages
                 </div>
@@ -771,7 +767,7 @@ export default function PressReleasePipeline() {
                             <div
                                 key={l.code}
                                 className={
-                                    "p-3 rounded-md border " +
+                                    "p-3  border " +
                                     (l.code === primaryLang
                                         ? "border-violet-500/60 bg-violet-500/10"
                                         : "border-white/10 bg-black/30")
@@ -813,7 +809,7 @@ export default function PressReleasePipeline() {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/5 bg-black/30 font-mono text-xs text-gray-400 flex-wrap">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/10 bg-black/30 font-mono text-xs text-gray-400 flex-wrap">
                 <div>
                     {slides.length
                         ? `${slides.length} slides · ${Object.keys(translations).length}/10 langs`
@@ -846,9 +842,9 @@ function StageDot({ status }) {
     return (
         <span className="relative inline-flex w-2.5 h-2.5 mt-1.5">
             {status === STAGE_STATUS.RUNNING && (
-                <span className="absolute inset-0 rounded-full bg-violet-400 animate-ping opacity-60" />
+                <span className="absolute inset-0  bg-violet-400 animate-ping opacity-60" />
             )}
-            <span className={`relative w-2.5 h-2.5 rounded-full ${cls}`} />
+            <span className={`relative w-2.5 h-2.5  ${cls}`} />
         </span>
     );
 }

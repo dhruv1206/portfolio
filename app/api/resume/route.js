@@ -18,7 +18,7 @@ import {
     renderToBuffer,
 } from "@react-pdf/renderer";
 import React from "react";
-import { scoreJd } from "@/app/r/lib/score-jd";
+import { scoreJd } from "@/app/(site)/r/lib/score-jd";
 import { personalData } from "@/utils/data/personal-data";
 import { experiences } from "@/utils/data/experience";
 import { projectsData } from "@/utils/data/projects-data";

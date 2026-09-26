@@ -1,15 +1,25 @@
-import { Space_Grotesk, Inter } from "next/font/google";
+import { Archivo, Geist, Geist_Mono } from "next/font/google";
 
-export const spaceGrotesk = Space_Grotesk({
+// Site-wide type: Archivo (display, with its width axis), Geist (body)
+// and Geist Mono (data, labels, the control room). Exposed as CSS
+// variables on <html>; Tailwind's `font-display` / `font-body` /
+// `font-mono` and the SCSS tokens read them.
+
+export const archivo = Archivo({
     subsets: ["latin"],
     display: "swap",
-    variable: "--font-space-grotesk",
-    weight: ["300", "400", "500", "600", "700"],
+    variable: "--font-display",
+    axes: ["wdth"],
 });
 
-export const inter = Inter({
+export const geist = Geist({
     subsets: ["latin"],
     display: "swap",
-    variable: "--font-inter",
-    weight: ["400", "500", "600", "700"],
+    variable: "--font-body",
+});
+
+export const geistMono = Geist_Mono({
+    subsets: ["latin"],
+    display: "swap",
+    variable: "--font-mono",
 });

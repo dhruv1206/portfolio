@@ -221,7 +221,7 @@ export default function AnimatedArchitecture({
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={fadeTransition}
-                    className="absolute bottom-2 left-2 right-2 text-[12px] md:text-[13px] font-mono text-gray-300 leading-relaxed bg-[#06061a]/80 backdrop-blur-sm rounded-md px-2.5 py-1.5"
+                    className="absolute bottom-2 left-2 right-2 text-[12px] md:text-[13px] font-mono text-gray-300 leading-relaxed bg-black/70 border border-white/10 px-2.5 py-1.5"
                 >
                     {activeState.caption}
                 </motion.div>

@@ -168,12 +168,8 @@ const TerminalOverlay = ({ isOpen, onClose }) => {
                     onKeyDown={handleKeyDown}
                 >
                     {/* Terminal header */}
-                    <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-green-500/30">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-red-500" />
-                            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                            <div className="w-3 h-3 rounded-full bg-green-500" />
-                        </div>
+                    <div className="flex items-center justify-between px-4 py-2 bg-black border-b border-green-500/30">
+                        <span className="text-green-500/60 text-xs font-mono uppercase tracking-widest">terminal · ↑↑↓↓←→←→BA</span>
                         <span className="text-green-500 text-sm font-mono">
                             dhruv@portfolio:~
                         </span>

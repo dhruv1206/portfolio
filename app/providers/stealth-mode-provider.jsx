@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { personalData } from "@/utils/data/personal-data";
 import { useDoubleEscape } from "@/app/hooks/use-konami-code";
@@ -17,8 +17,12 @@ export function StealthModeProvider({ children }) {
         setIsStealthMode((prev) => !prev);
     }, []);
 
-    // Listen for double Escape
+    // Listen for double Escape, and for the control room's ⌘K entry.
     useDoubleEscape(toggleStealthMode);
+    useEffect(() => {
+        window.addEventListener("cr:stealth", toggleStealthMode);
+        return () => window.removeEventListener("cr:stealth", toggleStealthMode);
+    }, [toggleStealthMode]);
 
     return (
         <StealthModeContext.Provider value={{ isStealthMode, toggleStealthMode }}>
@@ -87,24 +91,37 @@ function StealthResume({ onExit }) {
                 <div className="space-y-4">
                     <div>
                         <div className="flex justify-between">
-                            <strong>Vibes Technologies</strong>
-                            <span>Jul 2024 - Present</span>
+                            <strong>MyRik, Bengaluru</strong>
+                            <span>Sep 2025 - Present</span>
                         </div>
-                        <div className="italic">Backend Developer (SDE-1)</div>
+                        <div className="italic">Software Engineer</div>
                         <ul className="list-disc list-inside text-sm mt-1">
-                            <li>Built robust meeting system with Spring Boot, WebSockets, WebRTC</li>
-                            <li>Architected microservices: Config Server, Eureka, Gateway, Signalling Server</li>
+                            <li>Zero-downtime GCP to AWS migration with a hybrid VPC-tunnel phase; observability moved to self-hosted Grafana, Loki and Tempo</li>
+                            <li>Cut p99 API latency from over 1 s to under 300 ms: OpenTelemetry tracing, N+1 queries, missing indexes, cross-region RTDB</li>
+                            <li>Reduced Google Maps API cost from Rs 200 to Rs 3 per ride (session tokens, debounced Distance Matrix)</li>
+                            <li>Designed a CQRS, event-driven product service for 150K+ monthly active users; Razorpay flow with webhook reconciliation</li>
                         </ul>
                     </div>
                     <div>
                         <div className="flex justify-between">
-                            <strong>Press Information Bureau (PIB)</strong>
-                            <span>Jun 2024 - Jul 2024</span>
+                            <strong>CarWale (CarTrade Tech), Navi Mumbai</strong>
+                            <span>Jan 2025 - Sep 2025</span>
                         </div>
-                        <div className="italic">Software Developer Intern</div>
+                        <div className="italic">Associate Software Engineer</div>
                         <ul className="list-disc list-inside text-sm mt-1">
-                            <li>Developed AI-powered multilingual press release video generator</li>
-                            <li>Reduced production time by 45%, boosted productivity by 35%</li>
+                            <li>Launched desktop Short Videos and AI chat support for 1M+ monthly users: +15% engagement, 50% faster query resolution</li>
+                            <li>20% fewer Kubernetes pods and 25% lower infrastructure cost; legacy frontend to 70% test coverage, 40% fewer defects</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <div className="flex justify-between">
+                            <strong>JioHotstar, Bengaluru</strong>
+                            <span>Nov 2024 - Dec 2024</span>
+                        </div>
+                        <div className="italic">Software Engineering Intern</div>
+                        <ul className="list-disc list-inside text-sm mt-1">
+                            <li>Migrated messaging from Kafka to GCP Pub/Sub: 5M+ content-quality events a day at 99.9% reliability</li>
+                            <li>Go APIs handling 10,000+ CQC jobs a day; containerized the CQC portal, 30% faster deploys</li>
                         </ul>
                     </div>
                 </div>
@@ -116,16 +133,16 @@ function StealthResume({ onExit }) {
                     Technical Skills
                 </h2>
                 <p className="text-sm">
-                    <strong>Languages:</strong> C++, Java, Python, JavaScript, Dart, SQL
+                    <strong>Languages:</strong> C++, Go, Java, Python, TypeScript, JavaScript, SQL
                 </p>
                 <p className="text-sm">
-                    <strong>Frameworks:</strong> Spring Boot, Node.js, Flutter, React, Next.js
+                    <strong>Frameworks:</strong> Node.js, Next.js, Spring Boot, React, Flutter
                 </p>
                 <p className="text-sm">
-                    <strong>Databases:</strong> MongoDB, PostgreSQL, Redis, Elasticsearch
+                    <strong>Databases and messaging:</strong> PostgreSQL, Redis, MongoDB, MySQL, Kafka, GCP Pub/Sub
                 </p>
                 <p className="text-sm">
-                    <strong>Tools:</strong> Git, Docker, Kubernetes, AWS, Firebase
+                    <strong>Cloud, DevOps and observability:</strong> AWS, GCP, Docker, Kubernetes, CI/CD, OpenTelemetry, Grafana, Loki, Tempo
                 </p>
             </section>
 
@@ -136,8 +153,8 @@ function StealthResume({ onExit }) {
                 </h2>
                 <div className="flex justify-between">
                     <div>
-                        <strong>LNCT Bhopal</strong>
-                        <div className="text-sm">Bachelor of Technology in Computer Science</div>
+                        <strong>Lakshmi Narain College of Technology, Bhopal</strong>
+                        <div className="text-sm">B.Tech in Computer Science, 8.23 CGPA</div>
                     </div>
                     <span>2021 - 2025</span>
                 </div>
@@ -150,13 +167,16 @@ function StealthResume({ onExit }) {
                 </h2>
                 <ul className="list-disc list-inside text-sm space-y-1">
                     <li>
-                        <strong>DStarDB:</strong> Multi-threaded in-memory database in C++ with Redis-style commands
+                        <strong>DStarDB:</strong> Redis-compatible in-memory database in C++20; reactor event loop plus thread pool, 40+ commands, transactions, snapshot and AOF persistence; 13% more throughput and 50% lower latency than Redis under concurrent reads (YCSB)
                     </li>
                     <li>
-                        <strong>College Attendance App:</strong> 3.5k+ downloads, 236% monthly growth
+                        <strong>Warehouse CCTV anomaly detection:</strong> 35 cameras across 8 warehouses, tamper and disconnection detection, per-zone person counting
                     </li>
                     <li>
-                        <strong>Real-Time Collaboration:</strong> WebRTC-based meeting platform with microservices
+                        <strong>Real-time collaboration platform:</strong> Spring Boot microservices with STOMP signalling and WebRTC media
+                    </li>
+                    <li>
+                        <strong>College attendance app:</strong> Flutter and Node.js, 6.5K+ downloads, 4.4 rating
                     </li>
                 </ul>
             </section>

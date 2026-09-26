@@ -1,0 +1,19 @@
+/* Voice navigation dock: reached from ⌘K, hairline and mono like the rest of the site. */
+.dock { position: fixed; right: clamp(16px, 4vw, 56px); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 90; width: min(320px, calc(100vw - 32px)); background: rgba(5, 5, 8, .95); border: 1px solid rgba(242, 242, 247, .22); color: #f2f2f7; font-family: var(--font-mono), ui-monospace, monospace; font-size: 12px; line-height: 1.5; cursor: auto;
+  header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid rgba(242, 242, 247, .1); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #a9a9bd;
+    i { width: 6px; height: 6px; border-radius: 50%; background: #6c6c82; flex: none; }
+    button { margin-left: auto; font: inherit; color: #6c6c82; background: none; border: 1px solid rgba(242, 242, 247, .22); padding: 1px 6px; cursor: pointer; &:hover { color: #f2f2f7; } } }
+  &[data-status="listening"] header i { background: #f59e0b; animation: vpulse 1s infinite; }
+  &[data-status="speaking"] header i { background: #22d3ee; }
+  &[data-status="success"] header i { background: #34d399; }
+  &[data-status="failed"] header i { background: #f472b6; }
+  footer { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid rgba(242, 242, 247, .1); font-size: 10.5px; color: #6c6c82;
+    button { font: inherit; letter-spacing: .1em; text-transform: uppercase; color: #f2f2f7; background: none; border: 1px solid rgba(242, 242, 247, .22); padding: 5px 9px; cursor: pointer; &:hover { background: #f2f2f7; color: #050508; } &[aria-pressed="true"] { border-color: #f59e0b; color: #f59e0b; } } }
+}
+.body { padding: 10px; min-height: 52px; display: grid; gap: 6px; p { margin: 0; } }
+.you { color: #f2f2f7; }
+.sys { color: #22d3ee; border-left: 2px solid rgba(34, 211, 238, .4); padding-left: 8px; }
+.err { color: #f472b6; }
+.hint { color: #6c6c82; }
+@keyframes vpulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .dock i { animation: none !important; } }
