@@ -6,7 +6,7 @@ import { ABOUT, ROLES, SCENARIOS } from "@/app/room/data";
 // Web Audio), so the server renders a crawlable summary plus the boot
 // title, and hands the viewport to the room once JavaScript loads.
 export const metadata = {
-    title: "Control room · Dhruv Agrawal",
+    title: "Control room",
     description: "A live, breakable model of the production systems I run. Kill a worker, partition the cache, watch it heal, then replay the incidents I actually fixed.",
     alternates: { canonical: "/room" },
 };

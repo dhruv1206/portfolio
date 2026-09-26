@@ -5,7 +5,7 @@
 // ms), so a 24 ms network hop is readable on screen while every latency
 // shown stays in honest model milliseconds.
 
-import { NODES, NodeDef } from "./data";
+import { NODES, NodeDef, TRACE_KIND_BY_ID, TRACE_KINDS } from "./data";
 
 const R = Math.random;
 export const SCALE = 0.2;
@@ -23,6 +23,9 @@ const HOP = 24, REQ_TIMEOUT = 1200, JOB_TIMEOUT = 8000;
 export type ReqType = "ride" | "product" | "checkout" | "ws" | "job" | "cron" | "msg";
 export type ReqState = "new" | "travel" | "queued" | "serving" | "retrying" | "done" | "failed";
 export interface TraceHop { node: string; wait: number; svc: number }
+/** What happens to the traced request, hop by hop, for the narrator. */
+export type HopKind = "arrive" | "queued" | "serve" | "served" | "travel" | "edge-hit" | "cache-hit" | "cache-miss" | "dep-fail" | "fail" | "complete";
+export interface HopEvent { kind: HopKind; node: string; to?: string; wait?: number; svc?: number; dur?: number; busy?: number; slots?: number; queue?: number; key?: string | null; reason?: string; latency?: number }
 export interface Req {
     id: number; type: ReqType; plan: string[]; hopIdx: number; state: ReqState; t0: number; held: string[]; trace: TraceHop[]; retries: number; you: boolean; isRead: boolean; key: string | null; hops: string[]; cur: string;
     msg?: boolean; tFrom?: string; tTo?: string; tStart?: number; tEnd?: number; qStart?: number; qNode?: string | null; svcNode?: string | null; svcStart?: number; svcEnd?: number; wait?: number; depFail?: boolean; retryAt?: number; mapsDone?: boolean; edgeHit?: boolean; latency?: number; error?: string;
@@ -43,6 +46,8 @@ const BASE_FLAGS = (): Flags => ({ breaker: false, jitter: false, index: true, r
 
 export class Sim {
     now = 0; load = 300; booting = true; bootIndex = 0; seq = 0; readonly SCALE = SCALE;
+    /** runtime multiplier on the model clock: 1 = normal, 0.25 = slow motion for a trace */
+    speed = 1;
     flags: Flags = BASE_FLAGS();
     nodes: Record<string, NodeState> = {};
     active: Req[] = []; responses: Resp[] = []; extras: Extra[] = []; events: LogEvent[] = [];
@@ -52,7 +57,7 @@ export class Sim {
     metrics: Metrics = { rps: 0, p50: 0, p99: 0, errRate: 0, shedRate: 0, queueDepth: 0, cacheHit: 0, costHr: 420, replicas: 4, costPerRide: 3, health: "booting", total: 0, errors: 0, concurrency: 0 };
     health: Health = "nominal"; outageSince = 0; records: Records = { maxRps: 0, longestOutage: 0, fastestRecovery: 0 }; lastChaosAt = 0; nominalSince = 0;
     private arrivalAcc = 0; private teleAcc = 0; private hbAcc = 0; private cronAcc = 0; private metricAcc = 0;
-    onLog: ((e: LogEvent) => void) | null = null; onTrace: ((r: Req) => void) | null = null; onHealth: ((h: Health) => void) | null = null; onMsg: ((r: Req) => void) | null = null;
+    onLog: ((e: LogEvent) => void) | null = null; onTrace: ((r: Req) => void) | null = null; onHop: ((r: Req, ev: HopEvent) => void) | null = null; onHealth: ((h: Health) => void) | null = null; onMsg: ((r: Req) => void) | null = null;
     you: Req | null = null;
 
     constructor() {
@@ -62,6 +67,7 @@ export class Sim {
     }
     log(text: string, kind: LogKind = "info") { const e: LogEvent = { t: this.now, text, kind }; this.events.push(e); if (this.events.length > 240) this.events.shift(); if (this.onLog) this.onLog(e); }
     slots(n: NodeState) { return (n.def.threads || 1) * Math.max(0, n.replicas); }
+    private hop(r: Req, ev: HopEvent) { if (r.you && this.onHop) this.onHop(r, ev); }
 
     /* ---------- cache (a real key space the REPL shares) ---------- */
     cacheGet(k: string): CacheEntry | null { if (!this.cacheAlive) return null; const e = this.cache.get(k); if (!e) return null; if (e.exp && e.exp < this.now) { this.cache.delete(k); return null; } return e; }
@@ -82,9 +88,10 @@ export class Sim {
         return r;
     }
     spawn(type: ReqType, opts?: Partial<Req>): Req { const r = this.mkReq(type, opts); this.active.push(r); r.cur = r.plan[0]; r.hops.push(r.cur); this.arriveAt(r, r.plan[0], true); return r; }
-    private travel(r: Req, to: string) { r.state = "travel"; r.tFrom = r.cur; r.tTo = to; r.tStart = this.now; r.tEnd = this.now + HOP; r.cur = to; }
+    private travel(r: Req, to: string) { this.hop(r, { kind: "travel", node: r.cur, to }); r.state = "travel"; r.tFrom = r.cur; r.tTo = to; r.tStart = this.now; r.tEnd = this.now + HOP; r.cur = to; }
     private arriveAt(r: Req, id: string, initial = false) {
         const n = this.nodes[id]; r.cur = id; if (!initial) r.hops.push(id);
+        this.hop(r, { kind: "arrive", node: id, busy: n.busy, slots: this.slots(n), queue: n.queue.length });
         if (id === "users" || id === "cron" || (id === "razorpay" && r.type === "job")) { this.nextHop(r); return; }
         if (DEP[id] && this.flags.breaker) { const b = this.breakers[id]; if (b.state === "open") { if (this.now < b.openUntil) { this.depFail(r, id, true); return; } b.state = "half"; } }
         if (!n.alive) { if (id === "pg" && r.isRead && this.nodes.pgr.alive) { r.plan[r.hopIdx] = "pgr"; this.arriveAt(r, "pgr"); return; } this.fail(r, n.def.label + " down"); return; }
@@ -92,7 +99,7 @@ export class Sim {
         if (n.def.hold && r.held.includes(id)) { this.startService(r, n, null, false, true); return; } // re-entry: it still holds its thread here
         if (n.busy < this.slots(n)) this.startService(r, n);
         else if (n.def.hold && n.queue.length >= (n.def.qmax || 48) * Math.max(1, n.replicas)) { n.errors++; this.fail(r, n.def.label + " queue full · shed (503)"); }
-        else { n.queue.push(r); r.state = "queued"; r.qStart = this.now; r.qNode = id; }
+        else { n.queue.push(r); r.state = "queued"; r.qStart = this.now; r.qNode = id; this.hop(r, { kind: "queued", node: id, queue: n.queue.length, slots: this.slots(n) }); }
     }
     private unqueue(r: Req) { if (r.qNode) { const q = this.nodes[r.qNode].queue; const i = q.indexOf(r); if (i >= 0) q.splice(i, 1); r.qNode = null; } }
     private svcTime(n: NodeState, r: Req) {
@@ -108,6 +115,7 @@ export class Sim {
         let d = forcedDur != null ? forcedDur : this.svcTime(n, r); r.depFail = depTimeout;
         const dep = DEP[n.id]; if (dep && !depTimeout && d > dep.timeout) { d = dep.timeout; r.depFail = true; }
         r.state = "serving"; r.svcNode = n.id; r.svcStart = this.now; r.svcEnd = this.now + d; r.wait = wait;
+        this.hop(r, { kind: "serve", node: n.id, wait: Math.round(wait), busy: n.busy, slots: this.slots(n), dur: Math.round(d), key: r.key });
     }
     private release(r: Req) {
         if (r.state === "serving" && r.svcNode) { const n = this.nodes[r.svcNode]; if (!n.def.hold && n.busy > 0) n.busy--; }
@@ -116,6 +124,7 @@ export class Sim {
     private finishHop(r: Req) {
         const n = this.nodes[r.cur]; if (!n.def.hold && n.busy > 0) n.busy--; r.svcNode = null; n.served++;
         r.trace.push({ node: n.id, wait: Math.round(r.wait || 0), svc: Math.round(this.now - (r.svcStart || this.now)) });
+        this.hop(r, { kind: "served", node: n.id, wait: Math.round(r.wait || 0), svc: Math.round(this.now - (r.svcStart || this.now)) });
         const dep = DEP[n.id];
         if (dep) {
             const b = this.breakers[n.id];
@@ -129,14 +138,15 @@ export class Sim {
         this.nextHop(r);
     }
     private depFail(r: Req, id: string, fast: boolean) {
+        this.hop(r, { kind: "dep-fail", node: id, reason: fast ? "breaker open · failing fast" : "timeout" });
         if (id === "cache") { this.noteCache(false); this.nodes.cache.errors++; const owner = r.type === "product" ? "readmodel" : "ride"; const store = r.type === "product" ? "pgr" : "pg"; r.plan.push(owner, store); r.hopIdx++; this.travel(r, owner); return; }
         if (id === "maps") { this.nextHop(r, true); return; }
         this.nodes[id].errors++; this.fail(r, fast ? "payment failed fast (breaker open)" : "Razorpay timeout");
     }
     private nextHop(r: Req, skipMaps = false) {
         const id = r.cur;
-        if (id === "edge" && r.type === "product" && r.hopIdx === 1 && R() < 0.3) { r.edgeHit = true; this.complete(r); return; }
-        if (id === "cache" && r.isRead) { const hit = this.cacheGet(r.key || ""); this.noteCache(!!hit); if (hit) { this.complete(r); return; } const owner = r.type === "product" ? "readmodel" : "ride"; const store = r.type === "product" ? "pgr" : "pg"; r.plan.push(owner, store); }
+        if (id === "edge" && r.type === "product" && r.hopIdx === 1 && R() < 0.3) { r.edgeHit = true; this.hop(r, { kind: "edge-hit", node: "edge" }); this.complete(r); return; }
+        if (id === "cache" && r.isRead) { const hit = this.cacheGet(r.key || ""); this.noteCache(!!hit); this.hop(r, { kind: hit ? "cache-hit" : "cache-miss", node: "cache", key: r.key }); if (hit) { this.complete(r); return; } const owner = r.type === "product" ? "readmodel" : "ride"; const store = r.type === "product" ? "pgr" : "pg"; r.plan.push(owner, store); }
         if ((id === "pg" || id === "pgr") && r.isRead) { const key = r.key || "k:0"; this.cacheSet(key, '{"id":' + key.split(":")[1] + ',"fetched_at":' + Math.round(this.now) + "}", S(120000)); if (r.type === "ride" && !skipMaps && R() < 0.35 && !r.mapsDone) { r.mapsDone = true; r.plan.push("ride", "maps"); } else { this.complete(r); return; } }
         if (id === "maps") { this.mapsCalls += this.flags.tokens ? 1 : 12; this.complete(r); return; }
         if (id === "razorpay" && r.type === "checkout") { this.complete(r); this.spawn("job"); this.spawn("job"); this.extras.push({ kind: "event", path: ["product", "bus", "readmodel"], idx: 0, tStart: this.now, tEnd: this.now + HOP }); return; }
@@ -150,12 +160,12 @@ export class Sim {
             this.lat.push(lat); if (this.lat.length > 600) this.lat.shift(); this.completions.push(this.now); this.metrics.total++; if (r.type === "ride") this.rides++;
             const path = r.hops.slice().reverse(); if (path.length > 1) this.responses.push({ path, idx: 0, tStart: this.now, tEnd: this.now + HOP * 0.6, you: r.you });
         }
-        if (r.you) { r.latency = lat; this.you = null; if (this.onTrace) this.onTrace(r); }
+        if (r.you) { r.latency = lat; this.you = null; this.hop(r, { kind: "complete", node: r.cur, latency: lat }); if (this.onTrace) this.onTrace(r); }
     }
     private fail(r: Req, reason: string) {
         this.unqueue(r); this.release(r); r.state = "failed"; const i = this.active.indexOf(r); if (i >= 0) this.active.splice(i, 1);
         const shed = /breaker|shed/.test(reason); if (shed) this.shedWin.push(this.now); else { this.errorsWin.push(this.now); this.metrics.errors++; }
-        if (r.you) { this.you = null; r.error = reason; r.latency = this.now - r.t0; if (this.onTrace) this.onTrace(r); }
+        if (r.you) { this.you = null; r.error = reason; r.latency = this.now - r.t0; this.hop(r, { kind: "fail", node: r.cur, reason, latency: r.latency }); if (this.onTrace) this.onTrace(r); }
         if (this.flags.retries && r.retries < 2 && r.type !== "ws" && r.type !== "job" && r.type !== "cron" && r.type !== "msg") {
             const backoff = this.flags.jitter ? (60 * Math.pow(2, r.retries)) * (0.5 + R()) : 30;
             const rr = this.mkReq(r.type, { retries: r.retries + 1, key: r.key, t0: r.t0 }); rr.plan = rr.plan.slice(2); rr.retryAt = this.now + backoff; rr.state = "retrying"; rr.cur = "gateway"; this.active.push(rr);
@@ -193,11 +203,16 @@ export class Sim {
         return cap;
     }
     applySetup(s: Partial<Flags & { cold: boolean }>) { const f = this.flags; for (const k of ["index", "nplus1", "rtdbMumbai", "breaker", "jitter", "tokens"] as const) { const v = s[k]; if (v != null) f[k] = v; } if (s.cold) this.cache.clear(); }
-    trace(): Req { if (this.you) return this.you; const r = this.spawn("ride", { you: true }); this.you = r; return r; }
+    /** Spawns the one request you follow. A cold read gets a key that is not in the cache. */
+    trace(kind = "ride"): Req {
+        if (this.you) return this.you; const k = TRACE_KIND_BY_ID[kind] || TRACE_KINDS[0];
+        const opts: Partial<Req> = { you: true }; if (k.cold) opts.key = (k.type === "product" ? "product:" : "ride:") + (900000 + Math.floor(R() * 90000));
+        const r = this.spawn(k.type, opts); this.you = r; return r;
+    }
 
     /* ---------- step (realDt in real ms) ---------- */
     step(realDt: number) {
-        if (realDt <= 0) return; const dt = realDt * SCALE; this.now += dt; const f = this.flags; if (this.booting) return;
+        if (realDt <= 0) return; const dt = realDt * SCALE * this.speed; this.now += dt; const f = this.flags; if (this.booting) return;
         const spike = this.now < f.spikeUntil ? 8 : 1; this.arrivalAcc += (this.load * spike * dt) / 1000;
         while (this.arrivalAcc >= 1) { this.arrivalAcc -= 1; let x = R(); let t: ReqType = "ride"; for (const [k, p] of MIX) { if (x < p) { t = k; break; } x -= p; } if (this.active.length < 3000) this.spawn(t); }
         this.teleAcc += dt; if (this.teleAcc > S(420)) { this.teleAcc = 0; const src = ["gateway", "ride", "product", "payments", "readmodel", "workers"][Math.floor(R() * 6)]; this.extras.push({ kind: "tele", path: [src, "otel", "grafana"], idx: 0, tStart: this.now, tEnd: this.now + HOP * 1.4 }); }

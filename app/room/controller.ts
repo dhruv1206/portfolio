@@ -4,16 +4,19 @@
 // everything that has to happen in order (boot, tour, scenarios,
 // actions and their captions) lives here.
 
-import { ACTIONS, ACTION_BY_ID, BOOT_LINES, BOOT_ORDER, GHOSTS, NODE_BY_ID, NodeDef, SCENARIOS, cityOf } from "./data";
-import { Sim, type Flags, type Health, type LogEvent, type Metrics, type Req } from "./sim";
+import { ACTIONS, ACTION_BY_ID, BOOT_LINES, BOOT_ORDER, GHOSTS, NODE_BY_ID, NodeDef, SCENARIOS, TRACE_KINDS, TRACE_KIND_BY_ID, cityOf } from "./data";
+import { Sim, type Flags, type Health, type HopEvent, type LogEvent, type Metrics, type Req } from "./sim";
 import { World } from "./world";
 import { PresenceClient, type SharedRecords } from "./presence";
 import { snd, setSoundEnabled } from "./sound";
 
 export type PanelName = "about" | "work" | "projects" | "stack" | "contact" | "records" | "notes" | "node";
-export type Sheet = "console" | "rail" | "panel";
+export type Sheet = "console" | "trace" | "rail" | "panel";
 export interface ScenarioState { id: string; step: number; p99Start: number | null }
-export interface TraceView { city: string; latency: number; error?: string; hops: { label: string; wait: number; svc: number }[] }
+export interface TraceLine { t: number; text: string; kind: "info" | "ok" | "warn" | "err" }
+export interface TraceHopView { node: string; label: string; wait: number; svc: number | null; queued?: number }
+/** One request followed through the model: the narrated lines, the per-hop timings, where it is now. */
+export interface TraceView { kind: string; label: string; city: string; running: boolean; latency: number; error?: string; hops: TraceHopView[]; lines: TraceLine[]; cur: string | null; t0: number }
 export interface TipState { node: NodeDef; x: number; y: number; rows: [string, string][] }
 export interface LocalRecords { maxRps: number; longestOutage: number; fastestRecovery: number; visits: number }
 
@@ -23,7 +26,7 @@ export interface RoomSnapshot {
     panel: { name: PanelName; arg?: string } | null;
     caption: { text: string; n: number } | null; toast: { text: string; n: number } | null;
     tour: boolean; scenario: ScenarioState | null; sound: boolean; railHidden: boolean; sheet: Sheet; mobile: boolean;
-    peersText: string; city: string; trace: TraceView | null; traceBusy: boolean; log: (LogEvent & { rel: number })[];
+    peersText: string; city: string; trace: TraceView | null; traceBusy: boolean; traceOpen: boolean; traceKind: string; traceSpeed: number; log: (LogEvent & { rel: number })[];
     records: LocalRecords; shared: SharedRecords; hist: { rps: number[]; p99: number[]; err: number[]; q: number[] };
     tip: TipState | null; version: number;
 }
@@ -57,11 +60,12 @@ export class RoomController {
             booted: false, bootIndex: 0, bootLines: [], bootReady: false, bootHidden: false,
             health: "booting", metrics: this.sim.metrics, flags: this.sim.flags, fps: 0, load: this.sim.load, replicas: { ride: 2, workers: 2 },
             panel: null, caption: null, toast: null, tour: false, scenario: null, sound: false, railHidden: false, sheet: "console", mobile: false,
-            peersText: "alone here", city: cityOf(tz), trace: null, traceBusy: false, log: [],
+            peersText: "alone here", city: cityOf(tz), trace: null, traceBusy: false, traceOpen: false, traceKind: "ride", traceSpeed: 0.25, log: [],
             records: { maxRps: 0, longestOutage: 0, fastestRecovery: 0, visits: 0 }, shared: {}, hist: { rps: [], p99: [], err: [], q: [] }, tip: null, version: 0,
         };
         this.sim.onLog = (e) => this.set({ log: [...this.snapshot.log.slice(-59), { ...e, rel: this.t0 ? (performance.now() - this.t0) / 1000 : 0 }] });
-        this.sim.onTrace = (r) => this.onTrace(r);
+        this.sim.onTrace = () => { if (!this.traceReq) this.set({ traceBusy: false }); };
+        this.sim.onHop = (r, ev) => this.onHop(r, ev);
         this.startPresence();
         this.sim.onMsg = () => { this.toast("delivered · the worker wrote it to storage and the message is on its way to my phone.", 5200); snd.chime(); if (this.msgCallback) this.msgCallback(); };
     }
@@ -81,7 +85,7 @@ export class RoomController {
         const onResize = () => { this.layout(); }; window.addEventListener("resize", onResize); this.unbind.push(() => window.removeEventListener("resize", onResize));
         if (!this.attachedOnce) {
             this.attachedOnce = true;
-            this.loadRecords(); try { this.setSound(localStorage.getItem("cr.sound") === "1"); } catch { /* storage optional */ }
+            this.loadRecords(); this.baseTitle = document.title.replace(/^▲ (outage|degraded) · /, "");
             this.t0 = performance.now(); this.boot();
         } else { this.set({ panel: null, tip: null }); }
         this.presence?.start();
@@ -91,10 +95,10 @@ export class RoomController {
     detach() {
         cancelAnimationFrame(this.raf); for (const u of this.unbind) u(); this.unbind = []; this.presence?.stop(); this.stopTour(); this.world = null; this.canvas = null;
     }
-    private attachedOnce = false;
+    private attachedOnce = false; private baseTitle = "Control room · Dhruv Agrawal";
     private layout() {
-        const w = this.world; if (!w) return; w.resize(); const mobile = innerWidth < 821;
-        w.inset = mobile ? { top: 60, right: 0, bottom: Math.round(innerHeight * 0.42) + 40, left: 0 } : { top: 64, right: this.snapshot.railHidden ? 0 : 288, bottom: 194, left: 0 };
+        const w = this.world; if (!w) return; w.resize(); const mobile = innerWidth < 821; w.minScale = mobile ? 0.42 : 0;
+        w.inset = mobile ? { top: 52, right: 0, bottom: Math.round(innerHeight * 0.42) + 40, left: 0 } : { top: 56, right: this.snapshot.railHidden ? 0 : 288, bottom: 194, left: this.snapshot.traceOpen ? 472 : 0 };
         if (mobile !== this.snapshot.mobile) this.set({ mobile }); w.fit();
     }
     private loop = (now: number) => {
@@ -110,7 +114,7 @@ export class RoomController {
         if (this.snapshot.booted && health !== this.lastHealth) {
             if (health === "outage") snd.buzz();
             if (health === "nominal" && this.lastHealth !== "nominal") { snd.chime(); this.caption("recovered · " + (this.sim.records.fastestRecovery ? this.sim.records.fastestRecovery.toFixed(1) + " s since the last fault" : "systems nominal"), 4000); }
-            document.title = (health === "nominal" ? "" : health === "outage" ? "▲ outage · " : "▲ degraded · ") + "Dhruv Agrawal · Backend Engineer";
+            document.title = (health === "nominal" ? "" : health === "outage" ? "▲ outage · " : "▲ degraded · ") + this.baseTitle;
         }
         this.lastHealth = health;
         this.mergeRecords();
@@ -158,8 +162,7 @@ export class RoomController {
     private bindKeys() {
         const onKey = (e: KeyboardEvent) => {
             const typing = /INPUT|TEXTAREA/.test((document.activeElement && document.activeElement.tagName) || "");
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); window.dispatchEvent(new CustomEvent("cr:palette")); return; }
-            if (e.key === "Escape") { if (this.snapshot.tour) this.stopTour(); else if (this.snapshot.panel) this.closePanel(); else this.fit(); return; }
+            if (e.key === "Escape") { if (this.snapshot.tour) this.stopTour(); else if (this.snapshot.panel) this.closePanel(); else if (this.snapshot.trace?.running) this.endTrace(); else if (this.snapshot.traceOpen) this.closeTrace(); else this.fit(); return; }
             if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
             const a = ACTIONS.find((x) => x.key.toLowerCase() === e.key.toLowerCase()); if (a) { e.preventDefault(); this.doAction(a.id); return; }
             if (e.key === "f" || e.key === "0") this.fit(); if (e.key === "=") this.world?.zoomAt(1.25, innerWidth / 2, innerHeight / 2); if (e.key === "-") this.world?.zoomAt(0.8, innerWidth / 2, innerHeight / 2); if (e.key === "?") this.openPanel("notes");
@@ -180,7 +183,7 @@ export class RoomController {
 
     /* ---------- actions ---------- */
     doAction(id: string, by: "you" | "peer" = "you", peerCity?: string) {
-        if (!this.snapshot.booted) return; const a = ACTION_BY_ID[id]; const r = this.sim.act(id); if (!a) { this.set({ flags: { ...this.sim.flags } }); return; }
+        if (!this.snapshot.booted) return; if (this.snapshot.trace?.running) this.endTrace(); const a = ACTION_BY_ID[id]; const r = this.sim.act(id); if (!a) { this.set({ flags: { ...this.sim.flags } }); return; }
         const flashNode: Record<string, string> = { killWorker: "workers", killDb: "pg", partitionCache: "cache", slowPayments: "razorpay", dropIndex: "pg", singapore: "ride", retryStorm: "gateway" };
         if (this.world && flashNode[id] && a.kind === "chaos") this.world.flash[flashNode[id]] = this.world.time + 1200;
         if (a.kind === "chaos") snd.thud(); else snd.chime();
@@ -189,8 +192,87 @@ export class RoomController {
         this.set({ flags: { ...this.sim.flags } });
     }
     setLoad(n: number) { this.sim.load = n; this.set({ load: n }); }
-    trace() { if (this.sim.you) return; this.sim.trace(); this.set({ traceBusy: true }); }
-    private onTrace(r: Req) { snd.tick(); this.set({ traceBusy: false, trace: { city: this.snapshot.city, latency: r.latency || 0, error: r.error, hops: r.trace.map((t) => ({ label: NODE_BY_ID[t.node].label, wait: t.wait, svc: t.svc })) } }); }
+    /* ---------- trace: one request in slow motion, narrated hop by hop ---------- */
+    private traceReq: Req | null = null; private traceArm = false; private traceEndT: ReturnType<typeof setTimeout> | null = null;
+    openTrace() { const was = this.snapshot.traceOpen; this.set({ traceOpen: true, sheet: this.snapshot.mobile ? "trace" : this.snapshot.sheet }); if (!was) this.layout(); }
+    closeTrace() { this.endTrace(); this.set({ traceOpen: false, sheet: this.snapshot.mobile && this.snapshot.sheet === "trace" ? "console" : this.snapshot.sheet }); this.layout(); }
+    setTraceKind(id: string) { if (TRACE_KIND_BY_ID[id]) this.set({ traceKind: id }); }
+    setTraceSpeed(x: number) { this.set({ traceSpeed: x }); if (this.traceReq && this.snapshot.trace?.running) this.sim.speed = x; }
+    trace(kind = this.snapshot.traceKind) {
+        if (!this.snapshot.booted) return; if (this.sim.you) { this.openTrace(); return; }
+        const k = TRACE_KIND_BY_ID[kind] || TRACE_KINDS[0]; if (this.traceEndT) { clearTimeout(this.traceEndT); this.traceEndT = null; }
+        const view: TraceView = { kind: k.id, label: k.label, city: this.snapshot.city, running: true, latency: 0, hops: [], lines: [], cur: null, t0: this.sim.now };
+        const was = this.snapshot.traceOpen; this.set({ traceOpen: true, traceBusy: true, traceKind: k.id, sheet: this.snapshot.mobile ? "trace" : this.snapshot.sheet, trace: view }); if (!was && this.world) { this.layout(); }
+        this.sim.speed = this.snapshot.traceSpeed; this.traceArm = true;
+        const r = this.sim.trace(k.id); this.traceReq = r; this.traceArm = false;
+        const path = r.plan.slice(); if (r.type === "ride") path.push("pg", "maps"); if (r.type === "product") path.push("readmodel", "pgr");
+        if (this.world) { this.world.tracePath = new Set(path); this.world.fitNodes(path); }
+    }
+    /** Back to real time. The dock keeps the last trace on screen. */
+    endTrace() {
+        if (this.traceEndT) { clearTimeout(this.traceEndT); this.traceEndT = null; }
+        this.sim.speed = 1; this.traceReq = null; this.traceArm = false; if (this.world) this.world.tracePath = null;
+        const tv = this.snapshot.trace; if (tv && tv.running) this.set({ trace: { ...tv, running: false }, traceBusy: false });
+    }
+    private onHop(r: Req, ev: HopEvent) {
+        if (this.traceArm && r.you) { this.traceReq = r; this.traceArm = false; }
+        if (r !== this.traceReq) return; const tv = this.snapshot.trace; if (!tv || !tv.running) return;
+        const t = Math.round(this.sim.now - tv.t0); const lines = tv.lines.slice(); let hops = tv.hops; let cur = tv.cur; let running = true; let latency = tv.latency; let error = tv.error;
+        const push = (text: string | null, kind: TraceLine["kind"] = "info") => { if (text) lines.push({ t, text, kind }); };
+        const label = (id: string) => (NODE_BY_ID[id] ? NODE_BY_ID[id].label : id);
+        switch (ev.kind) {
+            case "arrive": cur = ev.node; push(this.narrateArrive(r, ev)); break;
+            case "queued": push(label(ev.node) + ": all " + ev.slots + " threads busy · queued behind " + Math.max(0, (ev.queue || 1) - 1), "warn"); hops = [...hops, { node: ev.node, label: label(ev.node), wait: 0, svc: null, queued: ev.queue }]; break;
+            case "serve": {
+                const slow = ev.node === "razorpay" && this.sim.now < this.sim.flags.slowUntil; push(this.narrateServe(r, ev), slow ? "warn" : "info");
+                const last = hops[hops.length - 1];
+                if (last && last.node === ev.node && last.svc === null && last.queued) { hops = hops.slice(0, -1).concat({ ...last, wait: ev.wait || 0 }); if (ev.wait) push(label(ev.node) + ": got a thread after " + ev.wait + " ms", "warn"); }
+                else hops = [...hops, { node: ev.node, label: label(ev.node), wait: ev.wait || 0, svc: null }];
+                break; }
+            case "served": { const i = hops.map((h) => h.node).lastIndexOf(ev.node); if (i >= 0) { hops = hops.slice(); hops[i] = { ...hops[i], svc: ev.svc || 0, wait: ev.wait || hops[i].wait }; } push(this.narrateServed(ev)); break; }
+            case "travel": break;
+            case "edge-hit": push("CDN hit at the edge: served from bom1 in 2 ms, it never reached the gateway", "ok"); break;
+            case "cache-hit": push("DStarDB hit: " + ev.key + " was warm", "ok"); break;
+            case "cache-miss": push("DStarDB miss: " + ev.key + " is not in the cache · falling back to " + (r.type === "product" ? "the read model and the replica" : "the ride service and Postgres"), "warn"); break;
+            case "dep-fail": push(label(ev.node) + ": " + ev.reason, "err"); break;
+            case "fail": running = false; error = ev.reason; latency = Math.round(ev.latency || 0); push("failed after " + latency + " ms · " + ev.reason, "err"); break;
+            case "complete": { running = false; latency = Math.round(ev.latency || 0); const svc = hops.reduce((a, h) => a + (h.svc || 0), 0), wait = hops.reduce((a, h) => a + h.wait, 0); const wire = Math.max(0, latency - svc - wait); push("done · " + latency + " ms end to end: " + wire + " ms on the wire, " + wait + " ms waiting for threads, " + svc + " ms of work", "ok"); break; }
+        }
+        this.set({ trace: { ...tv, hops, lines: lines.slice(-40), cur, running, latency, error }, traceBusy: running });
+        if (!running) { snd.tick(); this.traceEndT = setTimeout(() => this.endTrace(), 1500); }
+    }
+    private narrateArrive(r: Req, ev: HopEvent): string | null {
+        const k = TRACE_KIND_BY_ID[this.snapshot.trace?.kind || "ride"];
+        if (ev.node === "users") return (k ? k.verb : "request") + " leaves your device in " + this.snapshot.city + " · request #" + r.id;
+        if (ev.node === "cron") return "cron fires · reconciliation batch";
+        if (ev.node === "razorpay" && r.type === "job") return "Razorpay calls back · payment.captured webhook";
+        return null;
+    }
+    private narrateServe(r: Req, ev: HopEvent): string {
+        const f = this.sim.flags, s = this.sim, n = NODE_BY_ID[ev.node], st = s.nodes[ev.node];
+        switch (ev.node) {
+            case "edge": return "Edge PoP bom1: TLS terminated · " + (r.type === "product" ? "the CDN checks its cache" : r.type === "checkout" ? "a POST is never cached, straight to the gateway" : r.type === "ws" ? "the WebSocket upgrade passes through" : "rides are per user, so the CDN passes it on");
+            case "gateway": return "Gateway: takes thread " + ev.busy + " of " + ev.slots + " and holds it until the response is back" + (f.retries && !f.jitter ? " · naive retries armed" : "");
+            case "auth": return "Auth: verifies the JWT signature · no database call";
+            case "ride": return (r.trace.some((h) => h.node === "ride") ? "Ride service: back with the row from Postgres" : "Ride service: looks up " + r.key + " · cache first") + (!f.rtdbMumbai ? " · +70 ms, the RTDB is in Singapore" : "");
+            case "readmodel": return "Read model: denormalised view for " + r.key + " · cache first";
+            case "cache": return s.cacheAlive ? "DStarDB: GET " + r.key + " · 8 threads · " + fmt(s.cache.size) + " keys" : "DStarDB unreachable (partition) · waiting for the 300 ms timeout";
+            case "pg": return (f.index ? "Postgres: index seek · pool " + ev.busy + " / " + ev.slots : "Postgres: sequential scan, the index is missing · ×3 service time") + (f.nplus1 ? " · N+1: one query per row" : "");
+            case "pgr": return "Replica: the streaming replica takes the read · pool " + ev.busy + " / " + ev.slots;
+            case "maps": return f.tokens ? "Google Maps: Places lookup · 1 billed call (session token)" : "Google Maps: 12 billed calls · no session tokens";
+            case "payments": return "Payments: creates the order, persists the order id, calls Razorpay";
+            case "razorpay": return s.now < f.slowUntil ? "Razorpay: 900 ms today (injected) · the gateway thread waits · timeout at 700 ms" : "Razorpay: external · about 110 ms · the gateway thread waits";
+            case "signal": return "Signalling: WebSocket upgrade · STOMP subscribe to /topic/room";
+            case "queue": return "Queue: published to 1 of 4 partitions · " + s.nodes.workers.queue.length + " jobs waiting";
+            case "workers": return "Worker: pulled the job · " + st.replicas + " replicas × " + (n.threads || 1) + " threads";
+            case "storage": return "Object storage: object written";
+            default: return n.label + ": serving";
+        }
+    }
+    private narrateServed(ev: HopEvent): string | null {
+        if (ev.node === "cache" || ev.node === "pg" || ev.node === "pgr" || ev.node === "maps" || ev.node === "razorpay") return NODE_BY_ID[ev.node].label + ": " + ev.svc + " ms";
+        return null;
+    }
     exec(cmd: string) { return this.sim.exec(cmd); }
     sendMessage(payload: { name: string; email: string; message: string }, onDone: () => void) {
         this.msgCallback = () => { this.msgCallback = null; onDone(); const url = (process.env.NEXT_PUBLIC_APP_URL || "") + "/api/contact"; fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {}); };
@@ -207,7 +289,7 @@ export class RoomController {
     closePanel() { if (this.world) this.world.selected = null; this.set({ panel: null, sheet: this.snapshot.mobile && this.snapshot.sheet === "panel" ? "console" : this.snapshot.sheet }); }
     toggleRail() { this.set({ railHidden: !this.snapshot.railHidden }); setTimeout(() => this.layout(), 0); }
     setSheet(sheet: Sheet) { this.set({ sheet }); }
-    setSound(on: boolean) { setSoundEnabled(on); this.set({ sound: on }); try { localStorage.setItem("cr.sound", on ? "1" : "0"); } catch { /* optional */ } }
+    setSound(on: boolean) { if (on === this.snapshot.sound) return; setSoundEnabled(on); this.set({ sound: on }); }
     nodeLive(id: string): [string, string][] {
         const n = NODE_BY_ID[id]; const st = this.sim.nodes[id]; const s = this.sim; const m: [string, string][] = [];
         if (n.kind !== "users" && n.kind !== "ctl") m.push(["utilisation", Math.round(st.util * 100) + " %"], ["busy", st.busy + " / " + s.slots(st)], ["queued", String(st.queue.length)], ["served", fmt(st.served)], ["errors", fmt(st.errors)]);
@@ -225,7 +307,7 @@ export class RoomController {
     /* ---------- scenarios ---------- */
     startScenario(id: string) {
         const sc = SCENARIOS.find((s) => s.id === id); if (!sc) return;
-        this.sim.act("heal"); this.sim.applySetup(sc.setup); this.fit(); this.set({ scenario: { id, step: 0, p99Start: null }, panel: { name: "work" }, flags: { ...this.sim.flags } });
+        this.endTrace(); this.sim.act("heal"); this.sim.applySetup(sc.setup); for (const a of sc.pre || []) this.sim.act(a); this.fit(); this.set({ scenario: { id, step: 0, p99Start: null }, panel: { name: "work" }, flags: { ...this.sim.flags } });
         this.caption(sc.title + " · the system is now in the broken state · press next", 6000);
         setTimeout(() => { const s = this.snapshot.scenario; if (s && s.id === id && s.p99Start == null) this.set({ scenario: { ...s, p99Start: this.sim.metrics.p99 } }); }, 5000);
     }
@@ -233,14 +315,17 @@ export class RoomController {
         const s = this.snapshot.scenario; if (!s) return; const sc = SCENARIOS.find((x) => x.id === s.id); if (!sc) return;
         if (s.step >= sc.steps.length) { this.set({ scenario: null, panel: { name: "work" } }); return; }
         const st = sc.steps[s.step];
-        switch (st.action) { case "trace": this.trace(); this.focus("pg", 2.2); break; case "focusGateway": this.focus("gateway", 2.6); break; case "focusMaps": this.focus("maps", 2.4); break; default: this.doAction(st.action); }
+        const act = st.action;
+        if (act === "trace" || act.startsWith("trace:")) this.trace(act.split(":")[1] || "ride");
+        else if (act.startsWith("focus:")) this.focus(act.slice(6), 2.2);
+        else if (act !== "wait") this.doAction(act);
         this.caption(st.caption, 7000); this.set({ scenario: { ...s, step: s.step + 1 } });
     }
     stopScenario() { this.set({ scenario: null, panel: { name: "work" } }); this.sim.act("heal"); this.set({ flags: { ...this.sim.flags } }); }
 
     /* ---------- tour ---------- */
     startTour() {
-        this.stopTour(); this.closePanel(); this.set({ tour: true }); let i = 0;
+        this.stopTour(); this.closePanel(); this.endTrace(); this.set({ tour: true }); let i = 0;
         const step = () => { if (!this.snapshot.tour) return; const s = TOUR[i]; if (!s) { this.stopTour(); this.caption("end of tour · the console is yours", 4000); return; } s.f(this); this.caption(s.c, s.w - 300); i++; this.tourT = setTimeout(step, s.w); };
         step();
     }

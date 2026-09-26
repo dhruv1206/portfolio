@@ -8,7 +8,7 @@ import SiteChrome from "@/app/components/site-chrome";
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {
     return (
-        <SiteChrome quiet>
+        <SiteChrome>
             <Suspense fallback={<NavbarShell />}>
                 <Navbar />
             </Suspense>

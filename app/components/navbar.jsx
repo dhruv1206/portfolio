@@ -8,10 +8,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { personalData } from "@/utils/data/personal-data";
 import { useAudio } from "@/app/providers/audio-provider";
+import { togglePalette } from "@/app/lib/commands";
 
 const LINKS = [
     { name: "Home", href: "/" },
     { name: "Room", href: "/room" },
+    { name: "Projects", href: "/projects" },
     { name: "Lab", href: "/lab" },
     { name: "/r", href: "/r" },
     { name: "Blog", href: "/blog" },
@@ -22,10 +24,11 @@ const LINKS = [
 // markup, no active state) sits in the static HTML.
 export default function Navbar() {
     const pathname = usePathname() || "/";
-    return <NavbarShell pathname={pathname} />;
+    // The room never scrolls, so its bar keeps the hairline and backdrop.
+    return <NavbarShell pathname={pathname} solid={pathname.startsWith("/room")} />;
 }
 
-export function NavbarShell({ pathname = "/" }) {
+export function NavbarShell({ pathname = "/", solid = false }) {
     const [scrolled, setScrolled] = useState(false);
     const [open, setOpen] = useState(false);
     const audio = useAudio();
@@ -46,7 +49,7 @@ export function NavbarShell({ pathname = "/" }) {
     const section = pathname === "/" ? "" : pathname.split("/")[1];
 
     return (
-        <header className={`site-bar${scrolled ? " is-scrolled" : ""}`}>
+        <header className={`site-bar${scrolled || solid ? " is-scrolled" : ""}`}>
             <Link href="/" className="site-mark" onClick={() => setOpen(false)}>
                 <b>DA</b>
                 <span>dhruuv.me{section ? <i> / {section}</i> : null}</span>
@@ -66,7 +69,7 @@ export function NavbarShell({ pathname = "/" }) {
                 >
                     {audio.isMuted ? "sound off" : "sound on"}
                 </button>
-                <button type="button" className="opt" onClick={() => window.dispatchEvent(new CustomEvent("cr:palette"))} title="Modes">
+                <button type="button" className="opt" onClick={togglePalette} title="Command palette (⌘K)">
                     <kbd>⌘K</kbd>
                 </button>
                 <a href={personalData.resume} target="_blank" rel="noopener noreferrer">

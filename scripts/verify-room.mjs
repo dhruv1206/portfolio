@@ -29,8 +29,13 @@ async function open(name, vp, opts = {}) { const ctx = await browser.newContext(
     await page.evaluate(() => { window.__cr.focus("gateway", 2.6); }); await page.waitForTimeout(1200); await page.screenshot({ path: `${OUT}/room-gateway.png` });
     await page.evaluate(() => window.__cr.doAction("heal")); await page.waitForTimeout(2500);
     await page.evaluate(() => window.__cr.startScenario("p99")); await page.waitForTimeout(6000); const p0 = (await state(page)).p99;
-    for (let i = 0; i < 5; i++) { await page.click("text=Next:"); await page.waitForTimeout(4000); } s = await state(page); check("p99 scenario improves latency", s && s.p99 < p0, `${p0} → ${s && s.p99}`);
+    for (let i = 0; i < 8; i++) { const done = await page.evaluate(() => !!document.querySelector("aside[aria-label=Panel] button") && Array.from(document.querySelectorAll("aside[aria-label=Panel] button")).some((b) => b.textContent === "Done")); if (done) break; await page.click("text=Next:"); await page.waitForTimeout(4000); } s = await state(page); check("p99 scenario improves latency", s && s.p99 < p0, `${p0} → ${s && s.p99}`);
     await page.click("text=Done"); await page.waitForTimeout(300);
+    // a pattern scenario with a slow-motion trace step runs through
+    await page.evaluate(() => window.__cr.startScenario("herd")); await page.waitForTimeout(1500);
+    for (let i = 0; i < 8; i++) { const done = await page.evaluate(() => Array.from(document.querySelectorAll("aside[aria-label=Panel] button")).some((b) => b.textContent === "Done")); if (done) break; await page.click("text=Next:"); await page.waitForTimeout(2500); }
+    const herd = await page.evaluate(() => { const sn = window.__cr.getSnapshot(); return { done: Array.from(document.querySelectorAll("aside[aria-label=Panel] button")).some((b) => b.textContent === "Done"), speed: window.__cr.sim.speed, traced: !!(sn.trace && sn.trace.hops.length) }; });
+    check("cache-partition scenario walks to the end and restores real time", herd.done && herd.speed === 1 && herd.traced, JSON.stringify(herd)); await page.click("text=Done"); await page.waitForTimeout(300); await page.evaluate(() => window.__cr.doAction("heal")); await page.waitForTimeout(1500);
     for (const p of ["about", "projects", "stack", "contact", "records", "notes"]) { await page.evaluate((n) => window.__cr.openPanel(n), p); await page.waitForTimeout(250); const txt = await page.evaluate(() => document.querySelector("aside[aria-label=Panel]").textContent.length); check(`panel ${p} renders`, txt > 80, `${txt} chars`); }
     await page.evaluate(() => window.__cr.selectNode("cache")); await page.waitForTimeout(1300); const repl = await page.evaluate(() => document.querySelector("aside[aria-label=Panel]").textContent); check("cache inspector runs the REPL", repl.includes("hit_rate") && repl.includes("ride:1"), "");
     await page.fill("input[aria-label='DStarDB command']", "GET ride:12"); await page.keyboard.press("Enter"); await page.waitForTimeout(200); const got = await page.evaluate(() => document.querySelector("aside[aria-label=Panel]").textContent); check("REPL GET returns a live key", got.includes('"id":12'), "");
@@ -38,6 +43,24 @@ async function open(name, vp, opts = {}) { const ctx = await browser.newContext(
     await page.keyboard.press("Meta+k"); await page.waitForTimeout(300); const pal = await page.evaluate(() => !!document.querySelector("[role=dialog][aria-label='Command palette']")); check("⌘K opens the palette", pal);
     await page.keyboard.type("ambient"); await page.keyboard.press("Enter"); await page.waitForTimeout(600); check("ambient sound toggles from the palette without errors", errors.length === 0, errors.slice(-1).join(""));
     await page.evaluate(() => window.__cr.openPanel("contact")); await page.waitForTimeout(300); await page.fill("input[name=name]", "Verify"); await page.fill("input[name=email]", "v@example.com"); await page.fill("textarea[name=message]", "hello from the verifier"); await page.click("text=Enqueue"); await page.waitForTimeout(9000); const toast = await page.evaluate(() => document.querySelector("[role=status]:last-of-type") && document.body.textContent); check("contact job is delivered", toast.includes("delivered") || toast.includes("Delivered"), "");
+    const traceState = () => page.evaluate(() => { const t = window.__cr.getSnapshot().trace; return t ? { running: t.running, lines: t.lines.length, hops: t.hops.length, latency: t.latency, error: t.error || null } : null; });
+    await page.evaluate(() => window.__cr.setTraceSpeed(1));
+    for (const kind of ["ride", "ride-cold", "product", "checkout", "ws", "job"]) {
+        await page.evaluate((k) => window.__cr.trace(k), kind); let t = null; for (let i = 0; i < 60; i++) { await page.waitForTimeout(250); t = await traceState(); if (t && !t.running) break; }
+        check(`trace · ${kind} completes with narration`, t && !t.running && t.lines >= 3 && t.hops >= 1 && t.latency > 0, JSON.stringify(t)); await page.waitForTimeout(400);
+    }
+    await page.evaluate(() => window.__cr.setTraceSpeed(0.25)); await page.evaluate(() => window.__cr.trace("ride-cold")); await page.waitForTimeout(1200);
+    const slow = await page.evaluate(() => ({ speed: window.__cr.sim.speed, dock: !!document.querySelector("section[aria-label='Trace a request']"), running: !!window.__cr.getSnapshot().trace?.running, fps: Math.round(window.__cr.getSnapshot().fps) }));
+    check("slow-motion trace dilates the clock and shows the dock", slow.speed === 0.25 && slow.dock && slow.running, JSON.stringify(slow));
+    let st2 = null; for (let i = 0; i < 80; i++) { await page.waitForTimeout(250); st2 = await traceState(); if (st2 && !st2.running) break; } await page.waitForTimeout(1800);
+    const after = await page.evaluate(() => ({ speed: window.__cr.sim.speed, fps: Math.round(window.__cr.getSnapshot().fps) }));
+    check("real time returns after the trace", after.speed === 1 && st2 && !st2.running, JSON.stringify({ ...after, trace: st2 }));
+    await page.screenshot({ path: `${OUT}/room-trace.png` }); await page.evaluate(() => window.__cr.closeTrace()); await page.waitForTimeout(300);
+    const barOf = (root) => Array.from(root.querySelectorAll(".site-links a, .site-links button")).map((e) => e.textContent.trim().replace(/^sound (on|off)$/, "sound")).join("|");
+    const bar = await page.evaluate(barOf, await page.evaluateHandle(() => document));
+    const homeCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } }); const homePage = await homeCtx.newPage(); await homePage.goto(BASE + "/", { waitUntil: "load" }); await homePage.waitForTimeout(800);
+    const homeBar = await homePage.evaluate(barOf, await homePage.evaluateHandle(() => document)); await homeCtx.close();
+    check("the site bar is identical on / and /room", bar === homeBar && bar.includes("Projects"), `${homeBar} vs ${bar}`);
     await page.evaluate(() => { window.__cr.setLoad(1500); }); await page.waitForTimeout(6000); s = await state(page); check("1,500 rps stays above 45 fps", s && s.fps >= 45, `fps ${s && s.fps} rps ${s && s.rps}`);
     await ctx.close();
 }
@@ -45,13 +68,22 @@ async function open(name, vp, opts = {}) { const ctx = await browser.newContext(
     const { ctx, page } = await open("phone", { width: 400, height: 800 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
     await page.waitForTimeout(9000); const s = await state(page); check("phone boots and runs", s && s.booted && s.health !== "booting", JSON.stringify(s));
     const wide = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1); check("phone has no horizontal overflow", wide);
+    await page.evaluate(() => window.__cr.openTrace()); await page.waitForTimeout(400); const dockOk = await page.evaluate(() => { const d = document.querySelector("section[aria-label='Trace a request']"); if (!d) return false; const r = d.getBoundingClientRect(); return r.width > 300 && r.height > 100 && r.right <= innerWidth + 1; }); check("phone shows the trace sheet", dockOk);
     await page.screenshot({ path: `${OUT}/room-phone.png` }); await ctx.close();
 }
 {
     const { ctx, page } = await open("reduced", { width: 1280, height: 720 }, { reducedMotion: "reduce" });
     await page.waitForTimeout(4000); const s = await state(page); check("reduced motion boots instantly", s && s.booted, JSON.stringify(s)); await ctx.close();
 }
-for (const path of ["/r", "/lab", "/projects/dstardb", "/blog"]) { const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }); const page = await ctx.newPage(); page.on("pageerror", (e) => errors.push(`[${path}] ${e.message}`)); const res = await page.goto(BASE + path, { waitUntil: "load" }); await page.waitForTimeout(1500); const nav = await page.evaluate(() => !!document.querySelector("nav")); check(`${path} renders with site chrome`, res.ok() && nav, `status ${res.status()}`); await ctx.close(); }
+const TITLES = { "/r": "Recruiter mode · Dhruv Agrawal", "/lab": "Lab · Dhruv Agrawal", "/projects": "Projects · Dhruv Agrawal", "/projects/dstardb": "DStarDB · Dhruv Agrawal", "/blog": "Blog · Dhruv Agrawal", "/definitely-missing": "Not found · Dhruv Agrawal" };
+for (const path of Object.keys(TITLES)) {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }); const page = await ctx.newPage(); page.on("pageerror", (e) => errors.push(`[${path}] ${e.message}`)); const res = await page.goto(BASE + path, { waitUntil: "load" }); await page.waitForTimeout(1500);
+    const info = await page.evaluate(() => ({ nav: !!document.querySelector("nav.site-links"), title: document.title, dead: Array.from(document.querySelectorAll("a[href^='/#']")).map((a) => a.getAttribute("href")).filter((h) => !/^\/#s[0-5]$/.test(h)), rp: !!document.querySelector(".rp") }));
+    const okStatus = path === "/definitely-missing" ? res.status() === 404 : res.ok();
+    check(`${path} renders in the site language with the right title`, okStatus && info.rp && info.title === TITLES[path] && info.dead.length === 0 && (path === "/definitely-missing" || info.nav), `status ${res.status()} title "${info.title}" dead ${JSON.stringify(info.dead)}`);
+    if (path === "/r") { await page.keyboard.press("Meta+k"); await page.waitForTimeout(300); const pal = await page.evaluate(() => !!document.querySelector("[role=dialog][aria-label='Command palette']")); check("⌘K opens the palette on a reading page", pal); await page.keyboard.press("Escape"); }
+    await ctx.close();
+}
 await browser.close();
 check("no page errors", errors.length === 0, errors.slice(0, 5).join(" | "));
 const failed = results.filter((r) => !r.ok).length; console.log(`\n${results.length - failed}/${results.length} checks passed`); process.exit(failed ? 1 : 0);

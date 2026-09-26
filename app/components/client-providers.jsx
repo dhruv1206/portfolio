@@ -2,7 +2,7 @@
 
 // Root-level client providers, mounted once in app/layout.js for every
 // route: audio, stealth résumé (Esc Esc), the Konami terminal, native
-// view transitions and the perf HUD (backtick). Page-specific chrome
+// view transitions, the perf HUD (backtick) and the ⌘K palette. Page-specific chrome
 // lives in app/components/site-chrome.jsx (reading pages) and in the
 // control room itself (app/components/room).
 
@@ -18,6 +18,7 @@ const ViewTransitions = dynamic(
     { ssr: false },
 );
 const PerfHud = dynamic(() => import("./ui/perf-hud"), { ssr: false });
+const Palette = dynamic(() => import("./palette"), { ssr: false });
 
 // System architecture overlay + its DOM event bridge stay parked; see
 // app/components/ui/system-architecture-overlay.jsx.
@@ -43,6 +44,7 @@ function ClientProvidersInner({ children }) {
                 onClose={() => setIsTerminalOpen(false)}
             />
             <PerfHud />
+            <Palette />
             {children}
         </>
     );

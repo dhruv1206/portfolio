@@ -1,15 +1,15 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import Link from "next/link";
 import styles from "./room.module.scss";
-import { RoomController, type RoomSnapshot } from "@/app/room/controller";
-import { ACTIONS } from "@/app/room/data";
+import { RoomController, type PanelName, type RoomSnapshot } from "@/app/room/controller";
+import { ACTIONS, NODE_BY_ID, TRACE_KINDS, TRACE_KIND_BY_ID } from "@/app/room/data";
+import { useAudio } from "@/app/providers/audio-provider";
 import Panel from "./panel";
-import Palette from "./palette";
+import RoomCommands from "./room-commands";
 
 // One controller per page lifetime: it survives the stealth-résumé toggle
-// (which unmounts this subtree) and client-side navigation back to `/`,
+// (which unmounts this subtree) and client-side navigation away and back,
 // so the model keeps running instead of rebooting.
 let shared: RoomController | null = null;
 function getSharedController() { if (!shared) shared = new RoomController(); return shared; }
@@ -23,20 +23,24 @@ const cx = (...a: (string | false | undefined | null)[]) => a.filter(Boolean).jo
 export default function ControlRoom() {
     const [ctl] = useState(() => getSharedController());
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const audio = useAudio();
     useEffect(() => { const cv = canvasRef.current; if (!cv) return; ctl.attach(cv); (window as unknown as { __cr?: RoomController }).__cr = ctl; return () => { ctl.detach(); delete (window as unknown as { __cr?: RoomController }).__cr; }; }, [ctl]);
+    // The room's synthesised ticks follow the site-wide sound toggle in the bar.
+    useEffect(() => { ctl.setSound(!audio.isMuted); }, [ctl, audio.isMuted]);
     return (
         <Ctx.Provider value={ctl}>
             <Root>
                 <canvas ref={canvasRef} className={styles.world} role="img" aria-label="Live model of a production system. Use the console to inject faults." />
                 <Boot />
-                <Strip />
+                <Toolbar />
                 <TourChip />
                 <Rail />
+                <TraceDock />
                 <SheetTabs />
                 <Console />
                 <Overlays />
                 <Panel />
-                <Palette />
+                <RoomCommands />
             </Root>
         </Ctx.Provider>
     );
@@ -62,21 +66,24 @@ function Boot() {
 }
 
 const HEALTH_TXT: Record<string, string> = { nominal: "all systems nominal", degraded: "degraded", outage: "outage", booting: "booting" };
-function Strip() {
+const TABS: { name: PanelName; label: string }[] = [{ name: "about", label: "About" }, { name: "work", label: "Work" }, { name: "projects", label: "Projects" }, { name: "stack", label: "Stack" }, { name: "contact", label: "Contact" }, { name: "records", label: "Records" }];
+
+/** The room's own row under the shared site bar: health, the panels, and the three verbs. */
+function Toolbar() {
     const s = useSnapshot(); const ctl = useRoom();
-    const nav: { name: "about" | "work" | "projects" | "stack" | "contact" | "records"; label: string; opt?: boolean }[] = [{ name: "about", label: "About" }, { name: "work", label: "Work" }, { name: "projects", label: "Projects" }, { name: "stack", label: "Stack" }, { name: "contact", label: "Contact" }, { name: "records", label: "Records", opt: true }];
     return (
-        <header className={styles.strip}>
-            <Link className={styles.brand} href="/" title="Back to the homepage"><b>DA</b><span className={styles.name}>Dhruv Agrawal</span><span className={styles.role}>control room · back home ↖</span></Link>
+        <div className={styles.toolbar} role="toolbar" aria-label="Control room">
             <div className={styles.health} data-h={s.health}><i /><span>{HEALTH_TXT[s.health]}</span></div>
-            <nav className={styles.nav} aria-label="Sections">
-                {nav.map((n) => <button key={n.name} type="button" className={cx(s.panel?.name === n.name && "on", n.opt && "opt")} onClick={() => (s.panel?.name === n.name ? ctl.closePanel() : ctl.openPanel(n.name))}>{n.label}</button>)}
-                <button type="button" className="opt" onClick={() => (s.tour ? ctl.stopTour() : ctl.startTour())}>Tour</button>
-                <button type="button" className="opt" aria-pressed={s.sound} onClick={() => ctl.setSound(!s.sound)}>{s.sound ? "sound on" : "sound off"}</button>
-                <button type="button" className="k" onClick={() => window.dispatchEvent(new CustomEvent("cr:palette"))}><kbd>⌘K</kbd></button>
-                <Link href="/" className="opt" title="Back to the homepage">Home</Link>
+            <nav className={styles.tabs} aria-label="Sections">
+                {TABS.map((n) => <button key={n.name} type="button" className={s.panel?.name === n.name ? "on" : ""} aria-pressed={s.panel?.name === n.name} onClick={() => (s.panel?.name === n.name ? ctl.closePanel() : ctl.openPanel(n.name))}>{n.label}</button>)}
             </nav>
-        </header>
+            <div className={styles.verbs}>
+                <button type="button" className={s.traceOpen ? "on" : ""} onClick={() => ctl.openTrace()}>Trace</button>
+                <button type="button" className={s.tour ? "on" : ""} onClick={() => (s.tour ? ctl.stopTour() : ctl.startTour())}>{s.tour ? "Stop tour" : "Tour"}</button>
+                <button type="button" onClick={() => ctl.fit()} title="Fit the whole system (F)">Fit</button>
+                <button type="button" onClick={() => ctl.openPanel("notes")} title="How this page works" aria-label="How this page works">?</button>
+            </div>
+        </div>
     );
 }
 
@@ -98,7 +105,7 @@ function Rail() {
     const s = useSnapshot(); const ctl = useRoom(); const m = s.metrics; const f = s.flags;
     const flags = [f.breaker && "breaker", f.jitter && "jitter", !f.index && "no index", !f.rtdbMumbai && "rtdb SG", !f.tokens && "no tokens", f.retries && !f.jitter && "naive retries"].filter(Boolean).join(" · ") || "baseline";
     const cls = (v: number, warn: number, bad: number) => (v > bad ? "bad" : v > warn ? "warn" : "");
-    const t = s.trace; const tot = Math.max(1, t?.latency || 1);
+    const t = s.trace;
     return (
         <aside className={cx(styles.rail, s.railHidden && styles.railHidden)} aria-label="Live metrics from the model">
             <div className={styles.rh}><span>model · live · <i>{Math.round(s.fps)} fps</i></span><button type="button" onClick={() => ctl.toggleRail()}>hide</button></div>
@@ -113,21 +120,59 @@ function Rail() {
             <div className={styles.mrow}><span>maps</span><b>₹{fmt(m.costPerRide)} / ride</b></div>
             <div className={styles.mrow}><span>state</span><b>{flags}</b></div>
             <div className={styles.trace}>
-                <div className={styles.trh}><span>your request · <i>{s.city}</i></span><b className={t?.error ? "bad" : ""}>{t ? (t.error ? "failed" : fmt(t.latency) + " ms") : "—"}</b></div>
-                {t?.hops.map((h, i) => <div key={i} className={styles.tr}><i>{h.label}</i><b style={{ width: Math.max(2, ((h.wait + h.svc) / tot) * 100) + "%" }} className={h.wait > h.svc ? "w" : ""} /><em>{h.wait ? h.wait + "+" : ""}{h.svc}</em></div>)}
-                {t?.error && <div className={styles.trx}>{t.error}</div>}
+                <div className={styles.trh}><span>your last request · <i>{s.city}</i></span><b className={t?.error ? "bad" : ""}>{t && !t.running ? (t.error ? "failed" : fmt(t.latency) + " ms") : t ? "tracing…" : "—"}</b></div>
+                {t && !t.running && <div className={styles.trk}>{t.label}</div>}
             </div>
-            <button type="button" className={styles.btnTrace} disabled={s.traceBusy} onClick={() => { ctl.trace(); ctl.caption("tracing one request end to end", 2500); }}>trace another request</button>
+            <button type="button" className={styles.btnTrace} onClick={() => ctl.openTrace()}>trace a request →</button>
             <div className={styles.peers}><span>{s.peersText}</span><i>dashed cursor = ghost replay</i></div>
         </aside>
     );
 }
 
+const SPEEDS: [number, string][] = [[0.25, "4× slower"], [0.1, "10× slower"], [1, "real time"]];
+/** Pick a request, watch it cross the model in slow motion, read what every hop did to it. */
+function TraceDock() {
+    const s = useSnapshot(); const ctl = useRoom(); const tv = s.trace; const linesRef = useRef<HTMLDivElement>(null);
+    const n = tv ? tv.lines.length : 0;
+    useEffect(() => { const el = linesRef.current; if (el) el.scrollTop = el.scrollHeight; }, [n]);
+    if (!s.traceOpen) return null;
+    const kind = TRACE_KIND_BY_ID[s.traceKind] || TRACE_KINDS[0]; const running = !!tv?.running; const tot = Math.max(1, tv?.latency || 1);
+    const status = running ? "slow motion · " + Math.round(1 / s.traceSpeed) + "× slower" : tv ? (tv.error ? "failed · " + fmt(tv.latency) + " ms" : fmt(tv.latency) + " ms end to end") : "pick a request";
+    return (
+        <section className={styles.tdock} aria-label="Trace a request">
+            <div className={styles.tdh}><span>trace · {tv ? tv.label : kind.label}</span><i>{status}</i><button type="button" onClick={() => ctl.closeTrace()}>esc</button></div>
+            <div className={styles.tdctl}>
+                <select value={s.traceKind} onChange={(e) => ctl.setTraceKind(e.target.value)} disabled={running} aria-label="Request kind">{TRACE_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
+                <button type="button" className={styles.tdgo} disabled={running || s.traceBusy} onClick={() => ctl.trace(s.traceKind)}>{tv && !running ? "Trace again" : running ? "Tracing…" : "Trace"}</button>
+            </div>
+            <div className={styles.tdmeta}>
+                <span>{kind.sub}</span>
+                <div className={styles.tdspeed} role="radiogroup" aria-label="Speed">{SPEEDS.map(([v, l]) => <button key={v} type="button" role="radio" aria-checked={s.traceSpeed === v} className={s.traceSpeed === v ? "on" : ""} onClick={() => ctl.setTraceSpeed(v)}>{l}</button>)}</div>
+            </div>
+            {tv ? (
+                <>
+                    <div className={styles.tlines} ref={linesRef} aria-live="polite">
+                        {tv.lines.map((l, i) => <div key={i} className={l.kind}><span>+{l.t} ms</span>{l.text}</div>)}
+                        {running && <div className={styles.tcur}><i />{tv.cur ? "at " + (NODE_BY_ID[tv.cur]?.label || tv.cur).toLowerCase() : "leaving"}</div>}
+                    </div>
+                    {tv.hops.length > 0 && (
+                        <div className={styles.thops}>
+                            {tv.hops.map((h, i) => <div key={i} className={styles.thop}><i>{h.label}</i><b style={{ width: Math.max(2, ((h.wait + (h.svc || 0)) / tot) * 100) + "%" }} className={h.svc === null ? "live" : h.wait > (h.svc || 0) ? "w" : ""} /><em>{h.wait ? h.wait + "+" : ""}{h.svc === null ? "…" : h.svc}</em></div>)}
+                            <div className={styles.tlegend}><i className="c" />time in service <i className="w" />waiting for a thread</div>
+                        </div>
+                    )}
+                </>
+            ) : <p className={styles.tdhint}>Pick a request and press Trace. The model slows down, the path lights up, and every hop explains what it did to your request as the packet arrives.</p>}
+        </section>
+    );
+}
+
 function SheetTabs() {
     const s = useSnapshot(); const ctl = useRoom();
+    const tabs: [RoomSnapshot["sheet"], string][] = [["console", "Console"], ["trace", "Trace"], ["rail", "Live"], ["panel", "Panel"]];
     return (
         <div className={styles.sheetTabs} role="tablist" aria-label="Panels">
-            {(["console", "rail", "panel"] as const).map((k) => <button key={k} type="button" role="tab" className={s.sheet === k ? "on" : ""} aria-selected={s.sheet === k} onClick={() => ctl.setSheet(k)}>{k === "rail" ? "Live" : k === "panel" ? "Panel" : "Console"}</button>)}
+            {tabs.map(([k, label]) => <button key={k} type="button" role="tab" className={s.sheet === k ? "on" : ""} aria-selected={s.sheet === k} onClick={() => { ctl.setSheet(k); if (k === "trace") ctl.openTrace(); }}>{label}</button>)}
         </div>
     );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./room.module.scss";
 import { useRoom, useSnapshot } from "./control-room";
-import { ABOUT, ACTION_BY_ID, EXAMPLE_RECORDS, NODE_BY_ID, PROJECTS, ROLES, SCENARIOS, STACK } from "@/app/room/data";
+import { ABOUT, ACTION_BY_ID, EXAMPLE_RECORDS, NODE_BY_ID, PROJECTS, ROLES, SCENARIOS, STACK, type ScenarioMetric } from "@/app/room/data";
 
 const TITLES: Record<string, string> = { about: "About", work: "Work · replay my incidents", projects: "Projects · live in this system", stack: "Stack · by layer", contact: "Contact · open a socket", records: "Records", notes: "How this page works", node: "Inspector" };
 const fmt = (n: number) => Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -44,14 +44,18 @@ function Work() {
     const ctl = useRoom();
     return (
         <>
-            <p className={styles.dim}>Three things I actually shipped, as scenarios you can replay against the live model. Each one resets the system into the broken state, then applies the fixes in the order they went out.</p>
-            {SCENARIOS.map((sc) => <div key={sc.id} className={styles.card}><div className={styles.ch}><span>{sc.org}{sc.year ? " · " + sc.year : ""}</span><b>{sc.title}</b></div><p>{sc.intro}</p><button type="button" className={styles.btn} onClick={() => ctl.startScenario(sc.id)}>Replay</button></div>)}
+            <p className={styles.dim}>Seven incidents you can replay against the live model: three I actually shipped fixes for, four failure patterns every distributed system meets. Each one resets the system into the broken state, then walks through the fix one step at a time.</p>
+            {SCENARIOS.map((sc) => <div key={sc.id} className={styles.card}><div className={styles.ch}><span>{sc.org}{sc.year ? " · " + sc.year : ""}{sc.real ? " · on the résumé" : " · pattern"}</span><b>{sc.title}</b></div><p>{sc.intro}</p><button type="button" className={styles.btn} onClick={() => ctl.startScenario(sc.id)}>Replay · {sc.steps.length} steps</button></div>)}
             <h4>Roles</h4>
             {ROLES.map((r) => <div key={r.org + r.when} className={styles.jobrow}><i>{r.when}</i><div><b>{r.org}</b><span>{r.title} · {r.where}</span>{r.bullets.length > 0 && <ul>{r.bullets.map((b) => <li key={b}>{b}</li>)}</ul>}</div></div>)}
         </>
     );
 }
 
+const LIVE: Record<ScenarioMetric, (m: { p99: number; errRate: number; shedRate: number; queueDepth: number; cacheHit: number; costPerRide: number }, workers: number) => [string, string]> = {
+    p99: (m) => ["p99 now", fmt(m.p99) + " ms"], err: (m) => ["errors", (m.errRate * 100).toFixed(1) + " %"], shed: (m) => ["shed (503)", (m.shedRate * 100).toFixed(1) + " %"],
+    queue: (m) => ["queued", fmt(m.queueDepth)], cacheHit: (m) => ["cache hit", Math.round(m.cacheHit * 100) + " %"], replicas: (_m, w) => ["worker replicas", String(w)], cost: (m) => ["maps cost / ride", "₹" + m.costPerRide],
+};
 function ScenarioView() {
     const s = useSnapshot(); const ctl = useRoom(); const sc = SCENARIOS.find((x) => x.id === s.scenario?.id); const st = s.scenario; if (!sc || !st) return null; const m = s.metrics; const done = st.step >= sc.steps.length;
     return (
@@ -61,11 +65,8 @@ function ScenarioView() {
             <ol className={styles.steps}>{sc.steps.map((step, i) => <li key={step.label} className={i < st.step ? styles.done : i === st.step ? styles.cur : ""}><b>{step.label}</b><span>{step.caption}</span></li>)}</ol>
             <div className={styles.row}><button type="button" className={styles.btn} onClick={() => ctl.nextStep()}>{done ? "Done" : "Next: " + sc.steps[st.step].label}</button><button type="button" className={cx(styles.btn, styles.ghost)} onClick={() => ctl.stopScenario()}>Stop</button></div>
             <div className={styles.live}>
-                <div><span>p99 at start</span><b>{st.p99Start != null ? fmt(st.p99Start) + " ms" : "measuring…"}</b></div>
-                <div><span>p99 now</span><b>{fmt(m.p99)} ms</b></div>
-                <div><span>errors</span><b>{(m.errRate * 100).toFixed(1)} %</b></div>
-                <div><span>cache hit</span><b>{Math.round(m.cacheHit * 100)} %</b></div>
-                {sc.id === "maps" && <div><span>maps cost / ride</span><b>₹{m.costPerRide}</b></div>}
+                {sc.metrics.includes("p99") && <div><span>p99 at start</span><b>{st.p99Start != null ? fmt(st.p99Start) + " ms" : "measuring…"}</b></div>}
+                {sc.metrics.map((k) => { const v = LIVE[k](m, s.replicas.workers); return <div key={k}><span>{v[0]}</span><b>{v[1]}</b></div>; })}
             </div>
             {done && <p className={styles.real}><b>What actually happened.</b> {sc.real}</p>}
         </div>
@@ -135,6 +136,7 @@ function Notes() {
         <>
             <h4>The idea</h4><p>The old site described systems. This one <b>is</b> one. A model of the platforms I run, live, breakable, self-healing. You are the request; the console lets you hurt it; the incidents let you replay what I fixed.</p>
             <h4>Real</h4><ul><li>Discrete-event model: queues, thread pools, timeouts, retries, circuit breakers, failover, autoscaling, a cache with real keys.</li><li>Clock: 1 real second = 200 model ms. Latencies are model milliseconds; hops are slowed so you can see them.</li><li>Presence: other people with this page open appear as cursors, and their chaos hits your model too.</li><li>DStarDB REPL in the cache node reads the same keys the traffic uses.</li><li>The contact form is a job through the queue, then a real message to my phone.</li></ul>
+            <h4>Trace</h4><p>Pick a request in the Trace dock and the model drops into slow motion while that one packet crosses it: the path lights up, everything else dims, and each hop reports what it did (which thread it took, whether the cache was warm, how long Postgres held it). Six kinds of request, three speeds.</p>
             <h4>Keys</h4><ul><li><kbd>K</kbd> <kbd>D</kbd> <kbd>C</kbd> <kbd>P</kbd> <kbd>S</kbd> <kbd>R</kbd> <kbd>I</kbd> <kbd>G</kbd> chaos · <kbd>B</kbd> <kbd>J</kbd> <kbd>+</kbd> <kbd>X</kbd> <kbd>M</kbd> <kbd>T</kbd> <kbd>W</kbd> <kbd>H</kbd> fixes</li><li><kbd>⌘K</kbd> palette · <kbd>F</kbd> fit · <kbd>Esc</kbd> back · scroll to zoom · drag to pan · double-click a node · <kbd>`</kbd> perf HUD · <kbd>Esc</kbd><kbd>Esc</kbd> printable résumé</li></ul>
         </>
     );
