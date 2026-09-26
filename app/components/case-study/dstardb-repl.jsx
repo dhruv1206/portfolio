@@ -203,21 +203,17 @@ export default function DStarDBREPL() {
     }
 
     return (
-        <div className="dstardb-repl glass-card overflow-hidden">
+        <div className="dstardb-repl demo-cell overflow-hidden">
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-black/30 font-mono text-xs">
-                <span className="flex gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-red-500/70" />
-                    <span className="w-3 h-3 rounded-full bg-yellow-500/70" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-500/70" />
-                </span>
-                <span className="text-gray-400 flex-1 text-center">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-black/30 font-mono text-xs">
+                <span className="text-cyan-400">▶</span>
+                <span className="text-gray-400 flex-1 text-left uppercase tracking-wider text-[11px]">
                     dstardb — Redis-style KV running in your browser
                 </span>
                 <span className="text-emerald-400 inline-flex items-center gap-1.5">
                     <span className="relative inline-flex w-2 h-2">
-                        <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
-                        <span className="relative w-2 h-2 rounded-full bg-emerald-400" />
+                        <span className="absolute inset-0  bg-emerald-400 animate-ping opacity-60" />
+                        <span className="relative w-2 h-2  bg-emerald-400" />
                     </span>
                     connected
                 </span>
@@ -226,7 +222,7 @@ export default function DStarDBREPL() {
             {/* Output */}
             <div
                 ref={scrollRef}
-                className="font-mono text-[13px] leading-relaxed px-4 py-4 h-[420px] overflow-y-auto bg-[#06061a]/80"
+                className="font-mono text-[13px] leading-relaxed px-4 py-4 h-[420px] overflow-y-auto bg-black/30"
             >
                 {entries.map((entry, i) => {
                     if (entry.kind === "system") {
@@ -279,7 +275,7 @@ export default function DStarDBREPL() {
 
             {/* Input */}
             <form
-                className="flex items-center gap-2 px-4 py-3 border-t border-white/5 bg-black/40 font-mono"
+                className="flex items-center gap-2 px-4 py-3 border-t border-white/10 bg-black/40 font-mono"
                 onSubmit={(e) => {
                     e.preventDefault();
                     runLine(input);
@@ -302,7 +298,7 @@ export default function DStarDBREPL() {
             </form>
 
             {/* Quick-pick chips */}
-            <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-white/5 bg-black/30">
+            <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-white/10 bg-black/30">
                 {QUICK_COMMANDS.map((cmd) => (
                     <button
                         key={cmd}
@@ -311,7 +307,7 @@ export default function DStarDBREPL() {
                             setInput(cmd);
                             inputRef.current?.focus();
                         }}
-                        className="text-xs font-mono px-2.5 py-1 rounded-md bg-violet-500/10 border border-violet-500/30 text-violet-200 hover:bg-violet-500/20 hover:border-violet-500/60 transition-colors"
+                        className="text-xs font-mono px-2.5 py-1  bg-violet-500/10 border border-violet-500/30 text-violet-200 hover:bg-violet-500/20 hover:border-violet-500/60 transition-colors"
                     >
                         {cmd}
                     </button>

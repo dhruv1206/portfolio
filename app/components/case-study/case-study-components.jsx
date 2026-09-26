@@ -23,7 +23,7 @@ export const StickySidebar = () => {
                             ?.scrollIntoView({ behavior: "smooth" });
                         setActiveSection("challenge");
                     }}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-all ${activeSection === "challenge"
+                    className={`w-full text-left px-4 py-3  transition-all ${activeSection === "challenge"
                             ? "bg-violet-500/20 border-l-2 border-violet-500 text-white"
                             : "text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
@@ -41,7 +41,7 @@ export const StickySidebar = () => {
                             ?.scrollIntoView({ behavior: "smooth" });
                         setActiveSection("solution");
                     }}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-all ${activeSection === "solution"
+                    className={`w-full text-left px-4 py-3  transition-all ${activeSection === "solution"
                             ? "bg-cyan-500/20 border-l-2 border-cyan-500 text-white"
                             : "text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
@@ -124,7 +124,7 @@ export const BeforeAfterSlider = ({ beforeImage, afterImage, beforeLabel = "Befo
     return (
         <div
             ref={containerRef}
-            className="relative w-full aspect-video rounded-xl overflow-hidden cursor-ew-resize select-none"
+            className="relative w-full aspect-video  overflow-hidden cursor-ew-resize select-none"
             onMouseMove={handleMouseMove}
             onTouchMove={handleTouchMove}
             onMouseDown={() => setIsDragging(true)}
@@ -140,7 +140,7 @@ export const BeforeAfterSlider = ({ beforeImage, afterImage, beforeLabel = "Befo
                     className="object-cover"
                     draggable={false}
                 />
-                <span className="absolute top-4 right-4 px-3 py-1 bg-cyan-500/80 text-white text-xs font-medium rounded-full">
+                <span className="absolute top-4 right-4 px-3 py-1 bg-cyan-500/80 text-white text-xs font-medium ">
                     {afterLabel}
                 </span>
             </div>
@@ -158,7 +158,7 @@ export const BeforeAfterSlider = ({ beforeImage, afterImage, beforeLabel = "Befo
                     className="object-cover"
                     draggable={false}
                 />
-                <span className="absolute top-4 left-4 px-3 py-1 bg-violet-500/80 text-white text-xs font-medium rounded-full">
+                <span className="absolute top-4 left-4 px-3 py-1 bg-violet-500/80 text-white text-xs font-medium ">
                     {beforeLabel}
                 </span>
             </div>
@@ -168,7 +168,7 @@ export const BeforeAfterSlider = ({ beforeImage, afterImage, beforeLabel = "Befo
                 className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
                 style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
             >
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white  shadow-lg flex items-center justify-center">
                     <svg
                         className="w-5 h-5 text-gray-800"
                         fill="none"
@@ -211,7 +211,7 @@ export const VideoEmbed = ({ url, thumbnail, title }) => {
 
     if (isPlaying) {
         return (
-            <div className="relative w-full aspect-video rounded-xl overflow-hidden">
+            <div className="relative w-full aspect-video  overflow-hidden">
                 <iframe
                     src={getEmbedUrl(url)}
                     title={title}
@@ -226,7 +226,7 @@ export const VideoEmbed = ({ url, thumbnail, title }) => {
     return (
         <button
             onClick={() => setIsPlaying(true)}
-            className="relative w-full aspect-video rounded-xl overflow-hidden group"
+            className="relative w-full aspect-video  overflow-hidden group"
         >
             {/* Thumbnail */}
             <div className="absolute inset-0 bg-dark-800">
@@ -247,7 +247,7 @@ export const VideoEmbed = ({ url, thumbnail, title }) => {
                 <motion.div
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center"
+                    className="w-20 h-20  bg-black/60 border border-white/30 flex items-center justify-center"
                 >
                     <svg
                         className="w-8 h-8 text-white ml-1"

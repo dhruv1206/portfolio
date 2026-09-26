@@ -20,7 +20,8 @@ export async function generateMetadata(props) {
     }
 
     return {
-        title: `${project.name} | Dhruv Agrawal`,
+        title: project.name,
+        alternates: { canonical: `/projects/${project.slug}` },
         description: project.description.substring(0, 160),
         openGraph: {
             title: project.name,

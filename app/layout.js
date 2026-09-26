@@ -4,16 +4,17 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./css/card.scss";
 import "./css/globals.scss";
+import "./css/reading.scss";
 import ClientProviders from "./components/client-providers";
 import { personalData } from "@/utils/data/personal-data";
 import { archivo, geist, geistMono } from "./fonts";
 
 const TITLE = "Dhruv Agrawal · Backend Engineer";
 const DESCRIPTION =
-    "Backend engineer at MyRik. The homepage is a live, breakable model of the production systems I run: kill a worker, partition the cache, watch it heal, then replay the incidents I actually fixed.";
+    "Backend engineer at MyRik. The platforms I run serve 150,000 people a month; their latency, cost and uptime are my job. Every claim on this site is backed by something you can run: a REPL, a real WebRTC room, a live model of the production system.";
 
 export const metadata = {
-    title: TITLE,
+    title: { default: TITLE, template: "%s · Dhruv Agrawal" },
     description: DESCRIPTION,
     keywords: [
         "Dhruv Agrawal",

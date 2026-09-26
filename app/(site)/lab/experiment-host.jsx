@@ -43,9 +43,7 @@ const LOADERS = {
 
 function LoadingShim() {
     return (
-        <div className="w-full h-full flex items-center justify-center">
-            <div className="w-10 h-10 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
-        </div>
+        <div className="spin-wrap"><span className="spin" />loading the simulation</div>
     );
 }
 
@@ -53,9 +51,7 @@ export default function ExperimentHost({ slug }) {
     const Comp = LOADERS[slug];
     if (!Comp) {
         return (
-            <div className="w-full h-full flex items-center justify-center text-gray-500 font-mono text-sm">
-                unknown experiment
-            </div>
+            <div className="spin-wrap">unknown experiment</div>
         );
     }
     return <Comp />;

@@ -848,15 +848,11 @@ export default function WebRTCDemo() {
     const isActive = mode !== MODE.IDLE;
 
     return (
-        <div className="webrtc-demo glass-card overflow-hidden">
+        <div className="webrtc-demo demo-cell overflow-hidden">
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-black/30 font-mono text-xs">
-                <span className="flex gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-red-500/70" />
-                    <span className="w-3 h-3 rounded-full bg-yellow-500/70" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-500/70" />
-                </span>
-                <span className="text-gray-400 flex-1 text-center">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-black/30 font-mono text-xs">
+                <span className="text-cyan-400">▶</span>
+                <span className="text-gray-400 flex-1 text-left uppercase tracking-wider text-[11px]">
                     {isActive
                         ? mode === MODE.LOOPBACK
                             ? "loopback — synthetic peer in this tab"
@@ -877,7 +873,7 @@ export default function WebRTCDemo() {
                     <span className="relative inline-flex w-2 h-2">
                         <span
                             className={
-                                "absolute inset-0 rounded-full opacity-60 " +
+                                "absolute inset-0  opacity-60 " +
                                 (connectionState === "connected"
                                     ? "bg-emerald-400 animate-ping"
                                     : "bg-gray-500")
@@ -885,7 +881,7 @@ export default function WebRTCDemo() {
                         />
                         <span
                             className={
-                                "relative w-2 h-2 rounded-full " +
+                                "relative w-2 h-2  " +
                                 (connectionState === "connected"
                                     ? "bg-emerald-400"
                                     : "bg-gray-500")
@@ -933,7 +929,7 @@ export default function WebRTCDemo() {
             )}
 
             {/* Footer */}
-            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/5 bg-black/30 font-mono text-xs text-gray-400 flex-wrap">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/10 bg-black/30 font-mono text-xs text-gray-400 flex-wrap">
                 <div className="flex items-center gap-3 flex-wrap">
                     {statsLine ? (
                         <>
@@ -975,7 +971,7 @@ export default function WebRTCDemo() {
                         <button
                             type="button"
                             onClick={hangup}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/60 transition-colors"
+                            className="px-3 py-1.5 text-xs font-semibold  bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/60 transition-colors"
                         >
                             Hang up
                         </button>
@@ -1008,7 +1004,7 @@ function PreJoinForm({
     onJoin,
 }) {
     return (
-        <div className="px-6 py-8 bg-[#06061a]/80 space-y-6">
+        <div className="px-6 py-8 bg-black/30 space-y-6">
             <div className="space-y-2">
                 <div className="text-sm text-gray-300 font-display font-medium">
                     Pick a connection mode
@@ -1033,7 +1029,7 @@ function PreJoinForm({
             </div>
 
             {connectionMode === "room" && (
-                <div className="space-y-3 p-4 rounded-lg border border-white/10 bg-black/30">
+                <div className="space-y-3 p-4  border border-white/10 bg-black/30">
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_140px] gap-2">
                         <label className="block">
                             <span className="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">
@@ -1043,7 +1039,7 @@ function PreJoinForm({
                                 value={roomIdInput}
                                 onChange={(e) => setRoomIdInput(e.target.value)}
                                 placeholder="amber-falcon-742"
-                                className="w-full bg-black/50 border border-white/10 rounded-md px-3 py-2 font-mono text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60"
+                                className="w-full bg-black/50 border border-white/10  px-3 py-2 font-mono text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60"
                                 autoComplete="off"
                                 spellCheck={false}
                             />
@@ -1058,7 +1054,7 @@ function PreJoinForm({
                                     setPasswordInput(e.target.value)
                                 }
                                 placeholder="—"
-                                className="w-full bg-black/50 border border-white/10 rounded-md px-3 py-2 font-mono text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60"
+                                className="w-full bg-black/50 border border-white/10  px-3 py-2 font-mono text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-violet-500/60"
                                 autoComplete="off"
                                 spellCheck={false}
                             />
@@ -1066,14 +1062,14 @@ function PreJoinForm({
                         <button
                             type="button"
                             onClick={onRegenerateRoom}
-                            className="self-end px-3 py-2 text-xs font-semibold rounded-md bg-white/5 border border-white/15 text-gray-200 hover:bg-white/10 hover:border-white/30 transition-colors"
+                            className="self-end px-3 py-2 text-xs font-semibold  bg-white/5 border border-white/15 text-gray-200 hover:bg-white/10 hover:border-white/30 transition-colors"
                         >
                             Generate
                         </button>
                     </div>
 
                     {shareUrl && (
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-violet-500/10 border border-violet-500/30 font-mono text-xs">
+                        <div className="flex items-center gap-2 p-2  bg-violet-500/10 border border-violet-500/30 font-mono text-xs">
                             <span className="text-violet-300 flex-shrink-0">
                                 share →
                             </span>
@@ -1083,7 +1079,7 @@ function PreJoinForm({
                             <button
                                 type="button"
                                 onClick={onCopyShareUrl}
-                                className="px-2 py-1 rounded bg-violet-500/20 text-violet-200 hover:bg-violet-500/40 transition-colors"
+                                className="px-2 py-1  bg-violet-500/20 text-violet-200 hover:bg-violet-500/40 transition-colors"
                             >
                                 {shareCopied ? "copied" : "copy"}
                             </button>
@@ -1108,7 +1104,7 @@ function PreJoinForm({
                 <button
                     type="button"
                     onClick={onJoin}
-                    className="px-4 py-2 text-sm font-semibold rounded-md bg-violet-500/20 border border-violet-500/50 text-violet-100 hover:bg-violet-500/40 hover:border-violet-500/80 transition-colors"
+                    className="px-4 py-2 text-sm font-semibold  bg-violet-500/20 border border-violet-500/50 text-violet-100 hover:bg-violet-500/40 hover:border-violet-500/80 transition-colors"
                 >
                     Join
                 </button>
@@ -1125,7 +1121,7 @@ function ModeChoice({ active, onClick, title, subtitle }) {
             aria-checked={active}
             onClick={onClick}
             className={
-                "text-left p-3 rounded-lg border transition-colors " +
+                "text-left p-3  border transition-colors " +
                 (active
                     ? "border-violet-500/60 bg-violet-500/10 text-white"
                     : "border-white/10 bg-black/30 text-gray-300 hover:border-white/30 hover:bg-black/50")
@@ -1160,7 +1156,7 @@ function ActiveSession({
     // because `lg:` matches viewport not container — the demo was
     // forced into a two-column squeeze and the chat got clipped.
     return (
-        <div className="flex flex-col bg-[#06061a]/80">
+        <div className="flex flex-col bg-black/30">
             <div className="p-4 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <VideoTile ref={localVideoRef} label="you" muted />
@@ -1174,7 +1170,7 @@ function ActiveSession({
                         }
                         disabled={cameraToggling}
                         className={
-                            "px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 " +
+                            "px-3 py-1.5  border transition-colors disabled:opacity-50 " +
                             (localIsCamera
                                 ? "bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20"
                                 : "bg-violet-500/10 border-violet-500/30 text-violet-200 hover:bg-violet-500/20")
@@ -1193,7 +1189,7 @@ function ActiveSession({
                     </span>
                 </div>
                 {shareUrl && (
-                    <div className="flex items-center gap-2 p-2 rounded-md bg-violet-500/10 border border-violet-500/30 font-mono text-xs">
+                    <div className="flex items-center gap-2 p-2  bg-violet-500/10 border border-violet-500/30 font-mono text-xs">
                         <span className="text-violet-300 flex-shrink-0">
                             share →
                         </span>
@@ -1203,7 +1199,7 @@ function ActiveSession({
                         <button
                             type="button"
                             onClick={onCopyShareUrl}
-                            className="px-2 py-1 rounded bg-violet-500/20 text-violet-200 hover:bg-violet-500/40 transition-colors"
+                            className="px-2 py-1  bg-violet-500/20 text-violet-200 hover:bg-violet-500/40 transition-colors"
                         >
                             {shareCopied ? "copied" : "copy"}
                         </button>
@@ -1211,7 +1207,7 @@ function ActiveSession({
                 )}
             </div>
 
-            <div className="flex flex-col border-t border-white/5">
+            <div className="flex flex-col border-t border-white/10">
                 <div className="max-h-[220px] overflow-y-auto px-4 py-3 font-mono text-[13px] space-y-1.5">
                     {messages.map((m, i) => (
                         <div
@@ -1237,7 +1233,7 @@ function ActiveSession({
                 </div>
                 <form
                     onSubmit={sendChat}
-                    className="flex items-center gap-2 px-3 py-2 border-t border-white/5 bg-black/40 font-mono"
+                    className="flex items-center gap-2 px-3 py-2 border-t border-white/10 bg-black/40 font-mono"
                 >
                     <span className="text-violet-500 select-none text-xs">
                         ›
@@ -1257,7 +1253,7 @@ function ActiveSession({
 
 const VideoTile = forwardRef(function VideoTile({ label, muted }, ref) {
     return (
-        <div className="relative aspect-video rounded-md overflow-hidden bg-black/60 border border-white/5">
+        <div className="relative aspect-video  overflow-hidden bg-black/60 border border-white/10">
             <video
                 ref={ref}
                 autoPlay
@@ -1265,7 +1261,7 @@ const VideoTile = forwardRef(function VideoTile({ label, muted }, ref) {
                 muted={muted}
                 className="w-full h-full object-cover"
             />
-            <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[10px] font-mono text-gray-300 uppercase tracking-wider">
+            <span className="absolute bottom-2 left-2 px-2 py-0.5  bg-black/60 backdrop-blur-sm text-[10px] font-mono text-gray-300 uppercase tracking-wider">
                 {label}
             </span>
         </div>
