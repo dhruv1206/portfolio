@@ -2,58 +2,49 @@ import { GoogleTagManager } from "@next/third-parties/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import Footer from "./components/footer";
-import Navbar from "./components/navbar";
 import "./css/card.scss";
 import "./css/globals.scss";
-import ScrollToTop from "./components/helper/scroll-to-top";
 import ClientProviders from "./components/client-providers";
 import { personalData } from "@/utils/data/personal-data";
-import { spaceGrotesk, inter } from "./fonts";
+import { archivo, geist, geistMono } from "./fonts";
+
+const TITLE = "Dhruv Agrawal · Backend Engineer";
+const DESCRIPTION =
+    "Backend engineer at MyRik. The homepage is a live, breakable model of the production systems I run: kill a worker, partition the cache, watch it heal, then replay the incidents I actually fixed.";
 
 export const metadata = {
-    title: `${personalData.name} | ${personalData.designation}`,
-    description: `${personalData.designation} specializing in System Design, NLP, and High-Performance Backends. ${personalData.description}`,
+    title: TITLE,
+    description: DESCRIPTION,
     keywords: [
-        "Software Developer",
-        "Full Stack Developer",
-        "System Design",
+        "Dhruv Agrawal",
         "Backend Engineer",
-        personalData.name,
-        "Portfolio",
-        "React",
-        "Next.js",
+        "Software Engineer",
+        "Distributed Systems",
+        "System Design",
+        "Spring Boot",
         "Node.js",
-        "Flutter",
-        "ElasticSearch",
-        "AWS",
+        "Kubernetes",
+        "Postgres",
+        "Redis",
+        "Portfolio",
     ],
     authors: [{ name: personalData.name }],
     creator: personalData.name,
     metadataBase: new URL("https://dhruuv.me"),
-    alternates: {
-        canonical: "/",
-    },
+    alternates: { canonical: "/" },
     openGraph: {
         type: "website",
         locale: "en_US",
         url: "https://dhruuv.me",
-        title: `${personalData.name} | ${personalData.designation}`,
-        description: `Specializing in System Design, NLP, and High-Performance Backends. Building scalable applications and solving complex problems.`,
-        siteName: `${personalData.name} Portfolio`,
-        images: [
-            {
-                url: "/og-image.png",
-                width: 1200,
-                height: 630,
-                alt: `${personalData.name} - ${personalData.designation}`,
-            },
-        ],
+        title: TITLE,
+        description: DESCRIPTION,
+        siteName: "dhruuv.me",
+        images: [{ url: "/og-image.png", width: 1200, height: 630, alt: TITLE }],
     },
     twitter: {
         card: "summary_large_image",
-        title: `${personalData.name} | ${personalData.designation}`,
-        description: "Specializing in System Design, NLP, and High-Performance Backends.",
+        title: TITLE,
+        description: DESCRIPTION,
         creator: "@dhruv_1206",
         images: ["/og-image.png"],
     },
@@ -70,21 +61,24 @@ export const metadata = {
     },
 };
 
+export const viewport = {
+    themeColor: "#050508",
+    viewportFit: "cover",
+};
+
 export default function RootLayout({ children }) {
     return (
         <html
             lang="en"
-            className={`${spaceGrotesk.variable} ${inter.variable}`}
+            className={`${archivo.variable} ${geist.variable} ${geistMono.variable}`}
         >
             <body className="font-body antialiased">
-                {/* Skip-to-content: first focusable element so keyboard
-                    + screen-reader users can bypass the nav. Styles in
-                    globals.scss (.skip-to-content). */}
+                {/* Skip-to-content: first focusable element so keyboard and
+                    screen-reader users can bypass any chrome. */}
                 <a href="#main-content" className="skip-to-content">
                     Skip to content
                 </a>
                 <ClientProviders>
-                    {/* Toast Notifications */}
                     <ToastContainer
                         position="bottom-right"
                         autoClose={3000}
@@ -97,31 +91,9 @@ export default function RootLayout({ children }) {
                         pauseOnHover
                         theme="dark"
                     />
-
-                    {/* Main Content. `id` is the skip-link target;
-                        tabIndex=-1 lets it receive programmatic focus
-                        without entering the tab order. */}
-                    <main
-                        id="main-content"
-                        tabIndex={-1}
-                        className="relative min-h-screen mx-auto px-6 sm:px-12 lg:max-w-[70rem] xl:max-w-[76rem] 2xl:max-w-[92rem] text-white outline-none"
-                    >
-                        <Navbar />
-                        {children}
-                        <ScrollToTop />
-                    </main>
-
-                    {/* Footer */}
-                    <Footer />
+                    {children}
                 </ClientProviders>
-
-                {/* Google Tag Manager */}
                 <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM} />
-
-                {/* Real-user Core Web Vitals, reported to Vercel. Loads
-                    after hydration, so it does not compete with the
-                    metrics it measures. Free on Hobby, but it collects
-                    nothing until Speed Insights is enabled on the project. */}
                 <SpeedInsights />
             </body>
         </html>

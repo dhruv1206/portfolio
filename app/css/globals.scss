@@ -7,8 +7,8 @@
    ============================================ */
 :root {
     /* Colors */
-    --color-bg-primary: #030014;
-    --color-bg-secondary: #0a0a1f;
+    --color-bg-primary: #050508;
+    --color-bg-secondary: #0b0b12;
     --color-bg-card: rgba(15, 15, 45, 0.6);
     --color-border: rgba(139, 92, 246, 0.2);
     --color-border-hover: rgba(139, 92, 246, 0.5);
@@ -72,12 +72,12 @@
 /* ============================================
    BASE STYLES
    ============================================ */
-* {
+body.site * {
     cursor: none;
 }
 
 @media (pointer: coarse) {
-    * {
+    body.site * {
         cursor: auto;
     }
 }
@@ -89,7 +89,7 @@ html {
 body {
     color: var(--color-text-primary);
     background-color: var(--color-bg-primary);
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-body), system-ui, sans-serif;
     overflow-x: hidden;
 }
 
@@ -269,7 +269,7 @@ body {
    SECTION STYLES
    ============================================ */
 .section-heading {
-    font-family: var(--font-space-grotesk), sans-serif;
+    font-family: var(--font-display), system-ui, sans-serif;
     font-size: clamp(2rem, 5vw, 3rem);
     font-weight: 700;
     letter-spacing: -0.02em;

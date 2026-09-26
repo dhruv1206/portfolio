@@ -20,10 +20,10 @@ const socialLinks = [
 ];
 
 const navLinks = [
-    { name: "About", href: "#about" },
-    { name: "Experience", href: "#experience" },
-    { name: "Projects", href: "#projects" },
-    { name: "Contact", href: "#contact" },
+    { name: "Control room", href: "/" },
+    { name: "Recruiter mode", href: "/r" },
+    { name: "Lab", href: "/lab" },
+    { name: "Blog", href: "/blog" },
 ];
 
 function Footer() {
@@ -51,8 +51,8 @@ function Footer() {
                             </span>
                         </Link>
                         <p className="text-sm text-gray-500 max-w-xs">
-                            Building scalable applications and solving complex problems. Open
-                            to exciting opportunities.
+                            Backend engineer. The homepage is a live, breakable model of the
+                            systems I run; this page is the reading version.
                         </p>
                     </div>
 

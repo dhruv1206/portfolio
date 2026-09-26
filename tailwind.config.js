@@ -34,8 +34,9 @@ module.exports = {
             },
             // Typography with variable fonts
             fontFamily: {
-                display: ["var(--font-space-grotesk)", "sans-serif"],
-                body: ["var(--font-inter)", "sans-serif"],
+                display: ["var(--font-display)", "system-ui", "sans-serif"],
+                body: ["var(--font-body)", "system-ui", "sans-serif"],
+                mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
             },
             // Giant typography for hero
             fontSize: {

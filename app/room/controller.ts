@@ -1,0 +1,267 @@
+// The control room's brain: owns the simulation, the renderer, presence
+// and records, and publishes an immutable snapshot that the React
+// components read through useSyncExternalStore. Components stay thin;
+// everything that has to happen in order (boot, tour, scenarios,
+// actions and their captions) lives here.
+
+import { ACTIONS, ACTION_BY_ID, BOOT_LINES, BOOT_ORDER, GHOSTS, NODE_BY_ID, NodeDef, SCENARIOS, cityOf } from "./data";
+import { Sim, type Flags, type Health, type LogEvent, type Metrics, type Req } from "./sim";
+import { World } from "./world";
+import { PresenceClient, type SharedRecords } from "./presence";
+import { snd, setSoundEnabled } from "./sound";
+
+export type PanelName = "about" | "work" | "projects" | "stack" | "contact" | "records" | "notes" | "node";
+export type Sheet = "console" | "rail" | "panel";
+export interface ScenarioState { id: string; step: number; p99Start: number | null }
+export interface TraceView { city: string; latency: number; error?: string; hops: { label: string; wait: number; svc: number }[] }
+export interface TipState { node: NodeDef; x: number; y: number; rows: [string, string][] }
+export interface LocalRecords { maxRps: number; longestOutage: number; fastestRecovery: number; visits: number }
+
+export interface RoomSnapshot {
+    booted: boolean; bootIndex: number; bootLines: { i: number; text: string }[]; bootReady: boolean; bootHidden: boolean;
+    health: Health; metrics: Metrics; flags: Flags; fps: number; load: number; replicas: { ride: number; workers: number };
+    panel: { name: PanelName; arg?: string } | null;
+    caption: { text: string; n: number } | null; toast: { text: string; n: number } | null;
+    tour: boolean; scenario: ScenarioState | null; sound: boolean; railHidden: boolean; sheet: Sheet; mobile: boolean;
+    peersText: string; city: string; trace: TraceView | null; traceBusy: boolean; log: (LogEvent & { rel: number })[];
+    records: LocalRecords; shared: SharedRecords; hist: { rps: number[]; p99: number[]; err: number[]; q: number[] };
+    tip: TipState | null; version: number;
+}
+
+const fmt = (n: number, d = 0) => Number(n).toLocaleString("en-IN", { maximumFractionDigits: d });
+const TOUR: { c: string; w: number; f: (ctl: RoomController) => void }[] = [
+    { c: "This is a live model of the systems I run. Every dot is a request.", w: 4500, f: (c) => c.fit() },
+    { c: "The bright one is you. Requests enter at the edge, pass the gateway and fan out to services.", w: 4500, f: (c) => c.trace() },
+    { c: "Zoom into DStarDB: eight threads serving the cache. The keys are real; the REPL in the inspector reads them.", w: 5000, f: (c) => c.focus("cache", 2.6) },
+    { c: "Now break something. Killing a worker backs up the queue; the autoscaler notices in a few seconds.", w: 6500, f: (c) => { c.focus("workers", 2.0); c.doAction("killWorker"); } },
+    { c: "Kill the database primary. Writes fail, reads move to the replica, promotion takes about four seconds.", w: 7000, f: (c) => { c.focus("pg", 2.0); c.doAction("killDb"); } },
+    { c: "Slow one external dependency and the whole gateway starves. That is a cascading failure.", w: 7500, f: (c) => { c.focus("gateway", 2.4); c.doAction("slowPayments"); } },
+    { c: "A circuit breaker turns a slow failure into a fast one and frees the threads.", w: 6000, f: (c) => c.doAction("breaker") },
+    { c: "Heal everything. Then try the incidents I actually fixed, under Work.", w: 5000, f: (c) => { c.doAction("heal"); c.fit(); } },
+];
+
+export class RoomController {
+    sim = new Sim();
+    world: World | null = null;
+    presence: PresenceClient | null = null;
+    private listeners = new Set<() => void>();
+    private raf = 0; private last = 0; private uiAcc = 0; private fpsAcc = 0; private fpsN = 0;
+    private captionT: ReturnType<typeof setTimeout> | null = null; private toastT: ReturnType<typeof setTimeout> | null = null; private tourT: ReturnType<typeof setTimeout> | null = null;
+    private ghostsOn = true; private reduced = false; private canvas: HTMLCanvasElement | null = null; private unbind: (() => void)[] = [];
+    private lastHealth: Health = "nominal"; private msgCallback: (() => void) | null = null; private t0 = 0;
+    snapshot: RoomSnapshot;
+
+    constructor() {
+        const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ""; } })();
+        this.snapshot = {
+            booted: false, bootIndex: 0, bootLines: [], bootReady: false, bootHidden: false,
+            health: "booting", metrics: this.sim.metrics, flags: this.sim.flags, fps: 0, load: this.sim.load, replicas: { ride: 2, workers: 2 },
+            panel: null, caption: null, toast: null, tour: false, scenario: null, sound: false, railHidden: false, sheet: "console", mobile: false,
+            peersText: "alone here", city: cityOf(tz), trace: null, traceBusy: false, log: [],
+            records: { maxRps: 0, longestOutage: 0, fastestRecovery: 0, visits: 0 }, shared: {}, hist: { rps: [], p99: [], err: [], q: [] }, tip: null, version: 0,
+        };
+        this.sim.onLog = (e) => this.set({ log: [...this.snapshot.log.slice(-59), { ...e, rel: this.t0 ? (performance.now() - this.t0) / 1000 : 0 }] });
+        this.sim.onTrace = (r) => this.onTrace(r);
+        this.sim.onMsg = () => { this.toast("delivered · the worker wrote it to storage and the message is on its way to my phone.", 5200); snd.chime(); if (this.msgCallback) this.msgCallback(); };
+    }
+
+    /* ---------- store ---------- */
+    subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
+    getSnapshot = () => this.snapshot;
+    private set(patch: Partial<RoomSnapshot>) { this.snapshot = { ...this.snapshot, ...patch, version: this.snapshot.version + 1 }; for (const l of this.listeners) l(); }
+
+    /* ---------- lifecycle ---------- */
+    attach(canvas: HTMLCanvasElement) {
+        this.canvas = canvas; this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const world = new World(canvas, this.sim); this.world = world; world.nodeIndex = BOOT_ORDER;
+        this.layout(); world.cam = { ...world.tgt };
+        this.loadRecords(); try { this.setSound(localStorage.getItem("cr.sound") === "1"); } catch { /* storage optional */ }
+        this.bindPointer(canvas); this.bindKeys();
+        const onResize = () => { this.layout(); }; window.addEventListener("resize", onResize); this.unbind.push(() => window.removeEventListener("resize", onResize));
+        this.startPresence();
+        this.boot();
+        this.last = performance.now(); this.t0 = this.last; this.raf = requestAnimationFrame(this.loop);
+    }
+    detach() {
+        cancelAnimationFrame(this.raf); for (const u of this.unbind) u(); this.unbind = []; this.presence?.stop(); this.stopTour(); this.world = null; this.canvas = null;
+    }
+    private layout() {
+        const w = this.world; if (!w) return; w.resize(); const mobile = innerWidth < 821;
+        w.inset = mobile ? { top: 60, right: 0, bottom: Math.round(innerHeight * 0.42) + 40, left: 0 } : { top: 64, right: this.snapshot.railHidden ? 0 : 288, bottom: 194, left: 0 };
+        if (mobile !== this.snapshot.mobile) this.set({ mobile }); w.fit();
+    }
+    private loop = (now: number) => {
+        this.raf = requestAnimationFrame(this.loop); const dt = Math.max(0, Math.min(50, now - this.last)); this.last = now; if (document.hidden || !this.world) return;
+        this.sim.step(dt); if (this.presence) this.world.peers = this.presence.tick(dt).map((p) => ({ x: p.x, y: p.y, label: p.city })); this.ghosts(); this.world.frame(dt);
+        this.fpsAcc += dt; this.fpsN++; this.uiAcc += dt;
+        if (this.uiAcc > 250) { this.uiAcc = 0; const fps = this.fpsN / (this.fpsAcc / 1000); this.fpsAcc = 0; this.fpsN = 0; this.tick(fps); }
+    };
+    private tick(fps: number) {
+        const m = this.sim.metrics; const h = this.snapshot.hist; const push = (a: number[], v: number) => { const b = [...a, v]; return b.length > 90 ? b.slice(-90) : b; };
+        const hist = { rps: push(h.rps, m.rps), p99: push(h.p99, m.p99), err: push(h.err, (m.errRate + m.shedRate) * 100), q: push(h.q, m.queueDepth) };
+        const health = this.sim.booting ? "booting" : this.sim.health;
+        if (this.snapshot.booted && health !== this.lastHealth) {
+            if (health === "outage") snd.buzz();
+            if (health === "nominal" && this.lastHealth !== "nominal") { snd.chime(); this.caption("recovered · " + (this.sim.records.fastestRecovery ? this.sim.records.fastestRecovery.toFixed(1) + " s since the last fault" : "systems nominal"), 4000); }
+            document.title = (health === "nominal" ? "" : health === "outage" ? "▲ outage · " : "▲ degraded · ") + "Dhruv Agrawal · Backend Engineer";
+        }
+        this.lastHealth = health;
+        this.mergeRecords();
+        this.set({ metrics: { ...m }, flags: { ...this.sim.flags }, fps, health, hist, load: this.sim.load, replicas: { ride: this.sim.nodes.ride.replicas, workers: this.sim.nodes.workers.replicas } });
+    }
+
+    /* ---------- boot ---------- */
+    private boot() {
+        const order = BOOT_ORDER; let i = 0; const stepMs = 105;
+        const done = () => {
+            this.sim.bootIndex = order.length; this.sim.booting = false; this.set({ booted: true, bootIndex: order.length, bootReady: true });
+            setTimeout(() => this.set({ bootHidden: true }), 900);
+            this.sim.trace(); this.caption("that bright packet is you · " + this.snapshot.city + " · watch it come back", 5000);
+            setTimeout(() => { if (!this.snapshot.tour && !this.snapshot.scenario) this.caption("break something: press K to kill a worker, or use the console below", 7000); }, 5200);
+        };
+        if (this.reduced) { done(); return; }
+        const tick = () => {
+            if (this.snapshot.booted) return;
+            if (i >= order.length) { this.set({ bootLines: [...this.snapshot.bootLines, { i: -1, text: "system ready · 24/24 healthy · you are request #" + (48213 + Math.floor(Math.random() * 400)) + " from " + this.snapshot.city }] }); setTimeout(() => { if (!this.snapshot.booted) done(); }, 700); return; }
+            const id = order[i]; this.set({ bootLines: [...this.snapshot.bootLines, { i: i + 1, text: BOOT_LINES[id] || id }], bootIndex: i + 1 }); snd.boot(i); i++; this.sim.bootIndex = i; setTimeout(tick, stepMs);
+        };
+        setTimeout(tick, 500);
+        this.skipBoot = () => { if (!this.snapshot.booted) { i = order.length; done(); } };
+    }
+    skipBoot: () => void = () => {};
+
+    /* ---------- pointer + keys ---------- */
+    private bindPointer(cv: HTMLCanvasElement) {
+        const w = () => this.world as World; let drag: { x: number; y: number } | null = null; let pinch: { d: number; s: number } | null = null; let moved = false; const pts = new Map<number, { x: number; y: number }>();
+        const down = (e: PointerEvent) => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { const a = [...pts.values()]; pinch = { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), s: w().tgt.s }; drag = null; } else { drag = { x: e.clientX, y: e.clientY }; moved = false; } };
+        const move = (e: PointerEvent) => {
+            if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pinch && pts.size === 2) { const a = [...pts.values()]; const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); const mid: [number, number] = [(a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2]; const f = ((d / pinch.d) * pinch.s) / w().tgt.s; w().zoomAt(f, mid[0], mid[1]); pinch.d = d; pinch.s = w().tgt.s; return; }
+            if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) moved = true; if (moved) { w().pan(dx, dy); drag = { x: e.clientX, y: e.clientY }; cv.style.cursor = "grabbing"; } return; }
+            const n = w().nodeAt(e.clientX, e.clientY); w().hover = n ? n.id : null; cv.style.cursor = n ? "pointer" : "grab"; this.showTip(n, e.clientX, e.clientY);
+            if (this.presence && this.snapshot.booted) { const [wx, wy] = w().s2w(e.clientX, e.clientY); this.presence.setCursor(wx, wy); }
+        };
+        const up = (e: PointerEvent) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (drag && !moved) { const n = w().nodeAt(e.clientX, e.clientY); if (n) this.selectNode(n.id); else { w().selected = null; if (this.snapshot.panel?.name === "node") this.closePanel(); } } drag = null; cv.style.cursor = "grab"; };
+        const leave = () => { w().hover = null; this.set({ tip: null }); };
+        const wheel = (e: WheelEvent) => { e.preventDefault(); w().zoomAt(Math.exp(-e.deltaY * 0.0016), e.clientX, e.clientY); };
+        const dbl = (e: MouseEvent) => { const n = w().nodeAt(e.clientX, e.clientY); if (n) w().focus(n.id, 2.6); else w().fit(); };
+        cv.addEventListener("pointerdown", down); cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up); cv.addEventListener("pointerleave", leave); cv.addEventListener("wheel", wheel, { passive: false }); cv.addEventListener("dblclick", dbl);
+        this.unbind.push(() => { cv.removeEventListener("pointerdown", down); cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); cv.removeEventListener("pointerleave", leave); cv.removeEventListener("wheel", wheel); cv.removeEventListener("dblclick", dbl); });
+    }
+    private bindKeys() {
+        const onKey = (e: KeyboardEvent) => {
+            const typing = /INPUT|TEXTAREA/.test((document.activeElement && document.activeElement.tagName) || "");
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); window.dispatchEvent(new CustomEvent("cr:palette")); return; }
+            if (e.key === "Escape") { if (this.snapshot.tour) this.stopTour(); else if (this.snapshot.panel) this.closePanel(); else this.fit(); return; }
+            if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+            const a = ACTIONS.find((x) => x.key.toLowerCase() === e.key.toLowerCase()); if (a) { e.preventDefault(); this.doAction(a.id); return; }
+            if (e.key === "f" || e.key === "0") this.fit(); if (e.key === "=") this.world?.zoomAt(1.25, innerWidth / 2, innerHeight / 2); if (e.key === "-") this.world?.zoomAt(0.8, innerWidth / 2, innerHeight / 2); if (e.key === "?") this.openPanel("notes");
+        };
+        window.addEventListener("keydown", onKey); this.unbind.push(() => window.removeEventListener("keydown", onKey));
+    }
+    private showTip(n: NodeDef | null, x: number, y: number) {
+        if (!n) { if (this.snapshot.tip) this.set({ tip: null }); return; }
+        const st = this.sim.nodes[n.id]; const rows: [string, string][] = [];
+        if (n.kind !== "users" && n.kind !== "ctl") { rows.push(["util", Math.round(st.util * 100) + " %"], ["busy", st.busy + " / " + this.sim.slots(st)], ["queued", String(st.queue.length)], ["served", fmt(st.served)], ["errors", fmt(st.errors)]); if (n.replicas) rows.push(["replicas", String(st.replicas)]); }
+        if (n.stack) rows.push(["stack", n.stack.join(" · ")]);
+        this.set({ tip: { node: n, x, y, rows } });
+    }
+
+    /* ---------- messaging ---------- */
+    caption(text: string, ms = 6500) { if (this.captionT) clearTimeout(this.captionT); this.set({ caption: { text, n: this.snapshot.version } }); this.captionT = setTimeout(() => this.set({ caption: null }), ms); }
+    toast(text: string, ms = 3400) { if (this.toastT) clearTimeout(this.toastT); this.set({ toast: { text, n: this.snapshot.version } }); this.toastT = setTimeout(() => this.set({ toast: null }), ms); }
+
+    /* ---------- actions ---------- */
+    doAction(id: string, by: "you" | "peer" = "you", peerCity?: string) {
+        if (!this.snapshot.booted) return; const a = ACTION_BY_ID[id]; const r = this.sim.act(id); if (!a) { this.set({ flags: { ...this.sim.flags } }); return; }
+        const flashNode: Record<string, string> = { killWorker: "workers", killDb: "pg", partitionCache: "cache", slowPayments: "razorpay", dropIndex: "pg", singapore: "ride", retryStorm: "gateway" };
+        if (this.world && flashNode[id] && a.kind === "chaos") this.world.flash[flashNode[id]] = this.world.time + 1200;
+        if (a.kind === "chaos") snd.thud(); else snd.chime();
+        const cap = a.toggle && !r ? a.label + " off" : a.caption; this.caption(by === "peer" ? "a visitor in " + (peerCity || "another city") + " · " + cap : cap);
+        if (by === "you" && this.presence) this.presence.sendAction(id);
+        this.set({ flags: { ...this.sim.flags } });
+    }
+    setLoad(n: number) { this.sim.load = n; this.set({ load: n }); }
+    trace() { if (this.sim.you) return; this.sim.trace(); this.set({ traceBusy: true }); }
+    private onTrace(r: Req) { snd.tick(); this.set({ traceBusy: false, trace: { city: this.snapshot.city, latency: r.latency || 0, error: r.error, hops: r.trace.map((t) => ({ label: NODE_BY_ID[t.node].label, wait: t.wait, svc: t.svc })) } }); }
+    exec(cmd: string) { return this.sim.exec(cmd); }
+    sendMessage(payload: { name: string; email: string; message: string }, onDone: () => void) {
+        this.msgCallback = () => { this.msgCallback = null; onDone(); const url = (process.env.NEXT_PUBLIC_APP_URL || "") + "/api/contact"; fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {}); };
+        this.sim.spawn("msg", { plan: ["users", "edge", "gateway", "queue", "workers", "storage"], msg: true, isRead: false });
+        this.caption("your message is in the queue · watch the workers", 5000); this.closePanel(); this.focus("workers", 1.8);
+    }
+
+    /* ---------- camera / panels ---------- */
+    fit() { this.world?.fit(); }
+    focus(id: string, scale = 2.4) { this.world?.focus(id, scale); }
+    selectNode(id: string) { if (this.world) this.world.selected = id; this.openPanel("node", id); }
+    setHighlight(nodes: string[] | null) { if (this.world) this.world.highlight = nodes ? new Set(nodes) : null; }
+    openPanel(name: PanelName, arg?: string) { this.set({ panel: { name, arg }, sheet: this.snapshot.mobile ? "panel" : this.snapshot.sheet }); }
+    closePanel() { if (this.world) this.world.selected = null; this.set({ panel: null, sheet: this.snapshot.mobile && this.snapshot.sheet === "panel" ? "console" : this.snapshot.sheet }); }
+    toggleRail() { this.set({ railHidden: !this.snapshot.railHidden }); setTimeout(() => this.layout(), 0); }
+    setSheet(sheet: Sheet) { this.set({ sheet }); }
+    setSound(on: boolean) { setSoundEnabled(on); this.set({ sound: on }); try { localStorage.setItem("cr.sound", on ? "1" : "0"); } catch { /* optional */ } }
+    nodeLive(id: string): [string, string][] {
+        const n = NODE_BY_ID[id]; const st = this.sim.nodes[id]; const s = this.sim; const m: [string, string][] = [];
+        if (n.kind !== "users" && n.kind !== "ctl") m.push(["utilisation", Math.round(st.util * 100) + " %"], ["busy", st.busy + " / " + s.slots(st)], ["queued", String(st.queue.length)], ["served", fmt(st.served)], ["errors", fmt(st.errors)]);
+        if (n.replicas) m.push(["replicas", st.replicas + (st.provisioningUntil ? " (+1 provisioning)" : "")]);
+        if (id === "cache") m.push(["keys", fmt(s.cache.size)], ["hit rate", Math.round(s.metrics.cacheHit * 100) + " %"], ["reachable", s.cacheAlive ? "yes" : "no · partition"]);
+        if (id === "pg") m.push(["index", s.flags.index ? "present" : "MISSING"], ["primary", st.alive ? (st.promoted ? "promoted replica" : "up") : "DOWN"]);
+        if (id === "gateway") m.push(["circuit breakers", s.flags.breaker ? "armed" : "off"], ["retries", s.flags.retries ? (s.flags.jitter ? "budget + jitter" : "naive") : "off"]);
+        if (id === "razorpay") m.push(["latency", s.now < s.flags.slowUntil ? "900 ms (injected)" : "110 ms"], ["breaker", s.breakers.razorpay.state]);
+        if (id === "maps") m.push(["billed calls / ride", s.flags.tokens ? "1" : "12"], ["cost / ride", "₹" + s.metrics.costPerRide]);
+        if (id === "ride") m.push(["rtdb region", s.flags.rtdbMumbai ? "asia-south1 · Mumbai" : "asia-southeast1 · Singapore (+70 ms)"]);
+        if (id === "users") m.push(["load", fmt(s.load) + " rps"], ["in flight", fmt(s.metrics.concurrency)]);
+        return m;
+    }
+
+    /* ---------- scenarios ---------- */
+    startScenario(id: string) {
+        const sc = SCENARIOS.find((s) => s.id === id); if (!sc) return;
+        this.sim.act("heal"); this.sim.applySetup(sc.setup); this.fit(); this.set({ scenario: { id, step: 0, p99Start: null }, panel: { name: "work" }, flags: { ...this.sim.flags } });
+        this.caption(sc.title + " · the system is now in the broken state · press next", 6000);
+        setTimeout(() => { const s = this.snapshot.scenario; if (s && s.id === id && s.p99Start == null) this.set({ scenario: { ...s, p99Start: this.sim.metrics.p99 } }); }, 5000);
+    }
+    nextStep() {
+        const s = this.snapshot.scenario; if (!s) return; const sc = SCENARIOS.find((x) => x.id === s.id); if (!sc) return;
+        if (s.step >= sc.steps.length) { this.set({ scenario: null, panel: { name: "work" } }); return; }
+        const st = sc.steps[s.step];
+        switch (st.action) { case "trace": this.trace(); this.focus("pg", 2.2); break; case "focusGateway": this.focus("gateway", 2.6); break; case "focusMaps": this.focus("maps", 2.4); break; default: this.doAction(st.action); }
+        this.caption(st.caption, 7000); this.set({ scenario: { ...s, step: s.step + 1 } });
+    }
+    stopScenario() { this.set({ scenario: null, panel: { name: "work" } }); this.sim.act("heal"); this.set({ flags: { ...this.sim.flags } }); }
+
+    /* ---------- tour ---------- */
+    startTour() {
+        this.stopTour(); this.closePanel(); this.set({ tour: true }); let i = 0;
+        const step = () => { if (!this.snapshot.tour) return; const s = TOUR[i]; if (!s) { this.stopTour(); this.caption("end of tour · the console is yours", 4000); return; } s.f(this); this.caption(s.c, s.w - 300); i++; this.tourT = setTimeout(step, s.w); };
+        step();
+    }
+    stopTour() { if (this.tourT) clearTimeout(this.tourT); this.tourT = null; if (this.snapshot.tour) this.set({ tour: false }); }
+
+    /* ---------- presence, ghosts, records ---------- */
+    private startPresence() {
+        if (process.env.NEXT_PUBLIC_ROOM_PRESENCE === "off") return;
+        const p = new PresenceClient({
+            city: this.snapshot.city,
+            onPeers: (peers) => { this.ghostsOn = peers.length < 2; this.set({ peersText: peers.length ? "you + " + peers.length + " here · live" : "alone here · live" }); },
+            onAction: (a) => { if (ACTION_BY_ID[a.action]) { this.doAction(a.action, "peer", a.city); } },
+            onRecords: (r) => this.set({ shared: r }),
+        });
+        this.presence = p; p.start();
+    }
+    private ghosts() {
+        const w = this.world; if (!w) return; if (!this.ghostsOn || !this.snapshot.booted) { w.ghosts = []; return; }
+        const t = w.time / 1000;
+        w.ghosts = GHOSTS.map((g, i) => { const p = g.path; const u = (t * 0.06 + i * 0.37) % 1; const seg = u * (p.length - 1); const k = Math.min(p.length - 2, Math.floor(seg)); const f = seg - k; const a = p[k], b = p[k + 1]; return { x: a[0] + (b[0] - a[0]) * f + Math.sin(t * 1.3 + i) * 14, y: a[1] + (b[1] - a[1]) * f + Math.cos(t * 1.1 + i) * 10, label: "ghost · " + g.city + " · " + g.ago, ghost: true }; });
+    }
+    private loadRecords() { let r: Partial<LocalRecords> = {}; try { r = JSON.parse(localStorage.getItem("cr.records") || "{}"); } catch { /* optional */ } const records = { ...this.snapshot.records, ...r, visits: (r.visits || 0) + 1 }; this.set({ records }); this.saveRecords(records); }
+    private saveRecords(r: LocalRecords) { try { localStorage.setItem("cr.records", JSON.stringify(r)); } catch { /* optional */ } }
+    private mergeRecords() {
+        const r = this.sim.records, u = this.snapshot.records; let ch = false; const next = { ...u };
+        if (r.maxRps > u.maxRps) { next.maxRps = r.maxRps; ch = true; this.presence?.sendRecord("maxRps", r.maxRps); }
+        if (r.longestOutage > u.longestOutage) { next.longestOutage = r.longestOutage; ch = true; this.presence?.sendRecord("longestOutage", r.longestOutage); }
+        if (r.fastestRecovery && (!u.fastestRecovery || r.fastestRecovery < u.fastestRecovery)) { next.fastestRecovery = r.fastestRecovery; ch = true; this.presence?.sendRecord("fastestRecovery", r.fastestRecovery); }
+        if (ch) { this.set({ records: next }); this.saveRecords(next); }
+    }
+}

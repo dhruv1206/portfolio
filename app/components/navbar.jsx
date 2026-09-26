@@ -8,12 +8,12 @@ import { useAudio } from "@/app/providers/audio-provider";
 import { BsVolumeUp, BsVolumeMute } from "react-icons/bs";
 
 const navLinks = [
-    { name: "About", href: "#about" },
-    { name: "Experience", href: "#experience" },
-    { name: "Skills", href: "#skills" },
-    { name: "Projects", href: "#projects" },
-    { name: "Blog", href: "#blog" },
-    { name: "Contact", href: "#contact" },
+    { name: "Control room", href: "/" },
+    { name: "DStarDB", href: "/projects/dstardb" },
+    { name: "Rooms", href: "/projects/realtime-collaboration" },
+    { name: "Lab", href: "/lab" },
+    { name: "Recruiter", href: "/r" },
+    { name: "Blog", href: "/blog" },
 ];
 
 function Navbar() {
@@ -50,16 +50,9 @@ function Navbar() {
             setHidden(y > lastY && y > 200);
             lastY = y;
 
-            const pos = y + 200;
-            for (const link of navLinks) {
-                const el = document.querySelector(link.href);
-                if (!el) continue;
-                const top = el.offsetTop;
-                if (pos >= top && pos < top + el.offsetHeight) {
-                    setActiveSection(link.href);
-                    break;
-                }
-            }
+            const path = window.location.pathname;
+            const match = navLinks.find((link) => link.href !== "/" && path.startsWith(link.href));
+            setActiveSection(match ? match.href : "");
         };
 
         const onScroll = () => {
