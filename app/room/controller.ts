@@ -62,6 +62,7 @@ export class RoomController {
         };
         this.sim.onLog = (e) => this.set({ log: [...this.snapshot.log.slice(-59), { ...e, rel: this.t0 ? (performance.now() - this.t0) / 1000 : 0 }] });
         this.sim.onTrace = (r) => this.onTrace(r);
+        this.startPresence();
         this.sim.onMsg = () => { this.toast("delivered · the worker wrote it to storage and the message is on its way to my phone.", 5200); snd.chime(); if (this.msgCallback) this.msgCallback(); };
     }
 
@@ -72,19 +73,25 @@ export class RoomController {
 
     /* ---------- lifecycle ---------- */
     attach(canvas: HTMLCanvasElement) {
+        if (this.canvas) this.detach();
         this.canvas = canvas; this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
         const world = new World(canvas, this.sim); this.world = world; world.nodeIndex = BOOT_ORDER;
         this.layout(); world.cam = { ...world.tgt };
-        this.loadRecords(); try { this.setSound(localStorage.getItem("cr.sound") === "1"); } catch { /* storage optional */ }
         this.bindPointer(canvas); this.bindKeys();
         const onResize = () => { this.layout(); }; window.addEventListener("resize", onResize); this.unbind.push(() => window.removeEventListener("resize", onResize));
-        this.startPresence();
-        this.boot();
-        this.last = performance.now(); this.t0 = this.last; this.raf = requestAnimationFrame(this.loop);
+        if (!this.attachedOnce) {
+            this.attachedOnce = true;
+            this.loadRecords(); try { this.setSound(localStorage.getItem("cr.sound") === "1"); } catch { /* storage optional */ }
+            this.t0 = performance.now(); this.boot();
+        } else { this.set({ panel: null, tip: null }); }
+        this.presence?.start();
+        this.last = performance.now(); this.raf = requestAnimationFrame(this.loop);
     }
+    /** Called when the canvas unmounts (stealth résumé, route change). The model keeps its state and resumes on the next attach. */
     detach() {
         cancelAnimationFrame(this.raf); for (const u of this.unbind) u(); this.unbind = []; this.presence?.stop(); this.stopTour(); this.world = null; this.canvas = null;
     }
+    private attachedOnce = false;
     private layout() {
         const w = this.world; if (!w) return; w.resize(); const mobile = innerWidth < 821;
         w.inset = mobile ? { top: 60, right: 0, bottom: Math.round(innerHeight * 0.42) + 40, left: 0 } : { top: 64, right: this.snapshot.railHidden ? 0 : 288, bottom: 194, left: 0 };
@@ -241,14 +248,14 @@ export class RoomController {
 
     /* ---------- presence, ghosts, records ---------- */
     private startPresence() {
-        if (process.env.NEXT_PUBLIC_ROOM_PRESENCE === "off") return;
+        if (process.env.NEXT_PUBLIC_ROOM_PRESENCE === "off" || this.presence) return;
         const p = new PresenceClient({
             city: this.snapshot.city,
             onPeers: (peers) => { this.ghostsOn = peers.length < 2; this.set({ peersText: peers.length ? "you + " + peers.length + " here · live" : "alone here · live" }); },
             onAction: (a) => { if (ACTION_BY_ID[a.action]) { this.doAction(a.action, "peer", a.city); } },
             onRecords: (r) => this.set({ shared: r }),
         });
-        this.presence = p; p.start();
+        this.presence = p;
     }
     private ghosts() {
         const w = this.world; if (!w) return; if (!this.ghostsOn || !this.snapshot.booted) { w.ghosts = []; return; }

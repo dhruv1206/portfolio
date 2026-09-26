@@ -7,15 +7,20 @@ import { ACTIONS } from "@/app/room/data";
 import Panel from "./panel";
 import Palette from "./palette";
 
+// One controller per page lifetime: it survives the stealth-résumé toggle
+// (which unmounts this subtree) and client-side navigation back to `/`,
+// so the model keeps running instead of rebooting.
+let shared: RoomController | null = null;
+function getSharedController() { if (!shared) shared = new RoomController(); return shared; }
+
 const Ctx = createContext<RoomController | null>(null);
 export function useRoom(): RoomController { const c = useContext(Ctx); if (!c) throw new Error("useRoom outside ControlRoom"); return c; }
-const EMPTY: RoomSnapshot | null = null;
-export function useSnapshot(): RoomSnapshot { const c = useRoom(); return useSyncExternalStore(c.subscribe, c.getSnapshot, () => EMPTY as unknown as RoomSnapshot); }
+export function useSnapshot(): RoomSnapshot { const c = useRoom(); return useSyncExternalStore(c.subscribe, c.getSnapshot, c.getSnapshot); }
 const fmt = (n: number, d = 0) => Number(n).toLocaleString("en-IN", { maximumFractionDigits: d });
 const cx = (...a: (string | false | undefined | null)[]) => a.filter(Boolean).join(" ");
 
 export default function ControlRoom() {
-    const [ctl] = useState(() => new RoomController());
+    const [ctl] = useState(() => getSharedController());
     const canvasRef = useRef<HTMLCanvasElement>(null);
     useEffect(() => { const cv = canvasRef.current; if (!cv) return; ctl.attach(cv); (window as unknown as { __cr?: RoomController }).__cr = ctl; return () => { ctl.detach(); delete (window as unknown as { __cr?: RoomController }).__cr; }; }, [ctl]);
     return (

@@ -47,7 +47,7 @@ export const NODES: NodeDef[] = [
     { id: "pg", x: 1240, y: 610, w: 144, h: 56, kind: "data", label: "Postgres", sub: "primary · pool 40", threads: 40, svc: 16, internals: "db", stack: ["PostgreSQL 16", "pgbouncer"] },
     { id: "pgr", x: 1460, y: 610, w: 118, h: 56, kind: "data", label: "Replica", sub: "streaming · reads", threads: 40, svc: 16, stack: ["PostgreSQL 16"] },
     { id: "queue", x: 990, y: 750, w: 132, h: 50, kind: "data", label: "Queue", sub: "Pub/Sub · 4 partitions", threads: 999, svc: 0.8, internals: "queue", stack: ["GCP Pub/Sub", "pull consumers"] },
-    { id: "workers", x: 1240, y: 750, w: 144, h: 56, kind: "svc", label: "Workers", sub: "jobs · reconciliation", threads: 5, replicas: 2, svc: 120, scale: true, internals: "workers", stack: ["Node.js", "cron fallback"] },
+    { id: "workers", x: 1240, y: 750, w: 144, h: 56, kind: "svc", label: "Workers", sub: "jobs · reconciliation", threads: 5, replicas: 2, svc: 95, scale: true, internals: "workers", stack: ["Node.js", "cron fallback"] },
     { id: "storage", x: 1460, y: 750, w: 118, h: 50, kind: "data", label: "Object storage", sub: "Firebase", threads: 999, svc: 6, stack: ["Firebase Storage"] },
     { id: "cron", x: 1460, y: 470, w: 118, h: 50, kind: "ctl", label: "Cron", sub: "reconcile · 5 min", threads: 1, svc: 1 },
     { id: "config", x: 300, y: 90, w: 120, h: 46, kind: "ctl", label: "Config server", sub: "secrets · env", threads: 4, svc: 1 },
