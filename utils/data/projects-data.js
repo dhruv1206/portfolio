@@ -77,7 +77,7 @@ export const projectsData = [
         slug: "college-attendance-app",
         name: "College Attendance App",
         description:
-            "Developed and deployed a Flutter frontend and Node.js backend application on DigitalOcean for tracking college attendance. Implemented web scraping for real-time data acquisition, Firebase services for analytics and notifications, and WorkManager for local notifications. The app achieved over 3.5k downloads on Google Play Store within 2-3 months, with a monthly growth rate of 236%.",
+            "Developed and deployed a Flutter frontend and Node.js backend application on DigitalOcean for tracking college attendance. Implemented web scraping for real-time data acquisition, Firebase services for analytics and notifications, and WorkManager for local notifications. The app passed 3,500 downloads on Google Play in its first 2–3 months (236 % monthly growth) and stands at 6,500+ downloads since.",
         challenge:
             "Students had no easy way to track their attendance, often leading to shortfalls and exam debarments. The college system was only accessible via a complex web portal.",
         solution:

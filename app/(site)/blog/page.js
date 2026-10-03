@@ -39,7 +39,7 @@ export default async function BlogPage() {
                 <div className="cell">
                     <div className="cell-h"><b>Nothing published yet</b><span className="r">the feed is live</span></div>
                     <div className="cell-b btns">
-                        <p className="rp-p" style={{ margin: 0, flex: "1 1 320px" }}>The first pieces are drafts about DStarDB&apos;s thread pool and the p99 work at MyRik. Until they land, the case studies carry the same material.</p>
+                        <p className="rp-p" style={{ margin: 0, flex: "1 1 320px" }}>Nothing is published yet. The case studies carry the same material: what broke, what the trace said, what shipped.</p>
                         <Link href="/projects" className="mbtn">Case studies</Link>
                         <a href={`https://dev.to/${personalData.devUsername}`} target="_blank" rel="noopener noreferrer" className="mbtn mbtn-ghost">dev.to profile ↗</a>
                     </div>

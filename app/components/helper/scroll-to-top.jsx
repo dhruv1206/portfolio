@@ -19,7 +19,7 @@ export default function ScrollToTop() {
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}
             aria-label="Back to top"
-            className="mbtn mbtn-sm"
+            className="mbtn mbtn-sm scroll-top"
             style={{ position: "fixed", right: "clamp(16px, 4vw, 56px)", bottom: "calc(18px + env(safe-area-inset-bottom, 0px))", zIndex: 40, background: "rgba(5,5,8,.85)" }}
         >
             ↑ top

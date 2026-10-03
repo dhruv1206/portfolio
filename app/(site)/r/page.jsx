@@ -28,7 +28,7 @@ export default function RecruiterModePage() {
                 <TlDr />
                 <RoleFitter />
                 <section aria-label="Direct contact" className="cell">
-                    <div className="cell-h"><i>▶</i><b>direct contact</b><span>skip the form</span><span className="r">replies within a day</span></div>
+                    <div className="cell-h"><i>▶</i><b>direct contact</b><span>skip the form</span></div>
                     <div className="cell-b btns">
                         <a href={`mailto:${personalData.email}`} className="mbtn mbtn-primary">Email me</a>
                         <a href={personalData.linkedIn} target="_blank" rel="noopener noreferrer" className="mbtn">LinkedIn ↗</a>

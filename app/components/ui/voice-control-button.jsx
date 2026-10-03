@@ -53,6 +53,8 @@ export default function VoiceControlButton({ autoStart = false, onExit }) {
         return () => clearTimeout(t);
     }, [autoStart, isSupported]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Reading pages hide their back-to-top button while the dock owns the corner.
+    useEffect(() => { document.body.dataset.voice = "1"; return () => { delete document.body.dataset.voice; }; }, []);
     const status = isSpeaking ? "speaking" : matchSuccess ? "success" : matchFailed ? "failed" : isListening ? "listening" : "idle";
     const close = () => { if (isListening) toggleListening(); if (onExit) onExit(); };
 

@@ -96,4 +96,5 @@ a.row:hover .t b { color: var(--cyan); }
 .demo-cell { border: 1px solid var(--line); background: rgba(5, 5, 8, .6); }
 .demo-cell input, .demo-cell textarea, .demo-cell select { border-radius: 0 !important; }
 .demo-cell button, .demo-cell a[class*="px-"] { border-radius: 0 !important; }
+body[data-voice="1"] .scroll-top { display: none; }
 @media (prefers-reduced-motion: reduce) { .rp * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
