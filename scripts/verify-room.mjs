@@ -43,7 +43,7 @@ async function open(name, vp, opts = {}) { const ctx = await browser.newContext(
     await page.keyboard.press("Meta+k"); await page.waitForTimeout(300); const pal = await page.evaluate(() => !!document.querySelector("[role=dialog][aria-label='Command palette']")); check("⌘K opens the palette", pal);
     await page.keyboard.type("ambient"); await page.keyboard.press("Enter"); await page.waitForTimeout(600); check("ambient sound toggles from the palette without errors", errors.length === 0, errors.slice(-1).join(""));
     await page.evaluate(() => window.__cr.openPanel("contact")); await page.waitForTimeout(300); await page.fill("input[name=name]", "Verify"); await page.fill("input[name=email]", "v@example.com"); await page.fill("textarea[name=message]", "hello from the verifier"); await page.click("text=Enqueue"); await page.waitForTimeout(9000); const toast = await page.evaluate(() => document.querySelector("[role=status]:last-of-type") && document.body.textContent); check("contact job is delivered", toast.includes("delivered") || toast.includes("Delivered"), "");
-    const traceState = () => page.evaluate(() => { const t = window.__cr.getSnapshot().trace; return t ? { running: t.running, lines: t.lines.length, hops: t.hops.length, latency: t.latency, error: t.error || null } : null; });
+    const traceState = () => page.evaluate(() => { const t = window.__cr.getSnapshot().trace; const y = window.__cr.sim.you; return t ? { running: t.running, lines: t.lines.length, hops: t.hops.length, latency: t.latency, error: t.error || null, you: y ? y.type + "#" + y.id + " " + y.state + " @" + y.cur + " active=" + window.__cr.sim.active.includes(y) + " t0=" + Math.round(y.t0) + " now=" + Math.round(window.__cr.sim.now) : null } : null; });
     await page.evaluate(() => window.__cr.setTraceSpeed(1));
     for (const kind of ["ride", "ride-cold", "product", "checkout", "ws", "job"]) {
         await page.evaluate((k) => window.__cr.trace(k), kind); let t = null; for (let i = 0; i < 60; i++) { await page.waitForTimeout(250); t = await traceState(); if (t && !t.running) break; }
@@ -61,6 +61,13 @@ async function open(name, vp, opts = {}) { const ctx = await browser.newContext(
     const homeCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } }); const homePage = await homeCtx.newPage(); await homePage.goto(BASE + "/", { waitUntil: "load" }); await homePage.waitForTimeout(800);
     const homeBar = await homePage.evaluate(barOf, await homePage.evaluateHandle(() => document)); await homeCtx.close();
     check("the site bar is identical on / and /room", bar === homeBar && bar.includes("Projects"), `${homeBar} vs ${bar}`);
+    await page.evaluate(() => window.__cr.startTour()); await page.waitForTimeout(6500);
+    const mid = await page.evaluate(() => ({ tour: window.__cr.getSnapshot().tour, traceOpen: window.__cr.getSnapshot().traceOpen, speed: window.__cr.sim.speed }));
+    await page.waitForTimeout(6000);
+    const later = await page.evaluate(() => ({ tour: window.__cr.getSnapshot().tour, traceOpen: window.__cr.getSnapshot().traceOpen, speed: window.__cr.sim.speed, left: window.__cr.world.inset.left }));
+    await page.evaluate(() => window.__cr.stopTour()); await page.waitForTimeout(300); const stopped = await page.evaluate(() => ({ tour: window.__cr.getSnapshot().tour, traceOpen: window.__cr.getSnapshot().traceOpen, speed: window.__cr.sim.speed }));
+    check("the tour traces, then closes the dock and restores real time", mid.tour && mid.traceOpen && later.tour && !later.traceOpen && later.speed === 1 && later.left === 0 && !stopped.tour && !stopped.traceOpen && stopped.speed === 1, JSON.stringify({ mid, later, stopped }));
+    await page.evaluate(() => window.__cr.doAction("heal")); await page.waitForTimeout(1500);
     await page.evaluate(() => { window.__cr.setLoad(1500); }); await page.waitForTimeout(6000); s = await state(page); check("1,500 rps stays above 45 fps", s && s.fps >= 45, `fps ${s && s.fps} rps ${s && s.rps}`);
     await ctx.close();
 }
@@ -68,6 +75,7 @@ async function open(name, vp, opts = {}) { const ctx = await browser.newContext(
     const { ctx, page } = await open("phone", { width: 400, height: 800 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
     await page.waitForTimeout(9000); const s = await state(page); check("phone boots and runs", s && s.booted && s.health !== "booting", JSON.stringify(s));
     const wide = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1); check("phone has no horizontal overflow", wide);
+    const phoneVerbs = await page.evaluate(() => { const b = Array.from(document.querySelectorAll("section[aria-label=Console] button")).find((x) => /tour/i.test(x.textContent)); if (!b) return false; const r = b.getBoundingClientRect(); return r.width > 40 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight; }); check("phone console carries Tour and Fit", phoneVerbs);
     await page.evaluate(() => window.__cr.openTrace()); await page.waitForTimeout(400); const dockOk = await page.evaluate(() => { const d = document.querySelector("section[aria-label='Trace a request']"); if (!d) return false; const r = d.getBoundingClientRect(); return r.width > 300 && r.height > 100 && r.right <= innerWidth + 1; }); check("phone shows the trace sheet", dockOk);
     await page.screenshot({ path: `${OUT}/room-phone.png` }); await ctx.close();
 }

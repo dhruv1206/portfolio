@@ -196,7 +196,7 @@ export class Sim {
             case "warmCache": this.cacheAlive = true; f.partitionUntil = 0; this.warmCache(320); this.log("cache warmed · 320 hot keys loaded", "ok"); break;
             case "heal":
                 for (const k in n) { const x = n[k]; x.alive = true; x.replicas = x.baseReplicas; x.queue = []; x.busy = 0; x.provisioningUntil = 0; x.highSince = 0; x.lowSince = 0; x.promoted = false; }
-                this.active = []; this.responses = []; this.flags = BASE_FLAGS(); for (const k in this.breakers) this.breakers[k] = { state: "closed", fails: [], openUntil: 0 };
+                this.active = []; this.responses = []; this.you = null; this.flags = BASE_FLAGS(); for (const k in this.breakers) this.breakers[k] = { state: "closed", fails: [], openUntil: 0 };
                 this.cacheAlive = true; this.warmCache(300); this.load = 300; this.errorsWin = []; this.shedWin = []; this.lat = []; this.log("all systems restored to baseline", "ok"); break;
             default: cap = false;
         }

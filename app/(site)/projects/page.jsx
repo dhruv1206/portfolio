@@ -22,13 +22,13 @@ const SUMMARY = {
     "ai-press-release-generator": "PIB press releases in, narrated multilingual videos out. Selenium, GPT, ten languages of TTS and MoviePy; production time down 45 %.",
 };
 const EARLIER = {
-    "college-attendance-app": "Flutter front end, Node.js back end on DigitalOcean. Web scraping for live attendance data, Firebase analytics and notifications, WorkManager for local reminders. 6,500+ downloads at 4.4 ★.",
+    "college-attendance-app": "Flutter front end, Node.js back end on DigitalOcean. Web scraping for live attendance data, Firebase analytics and notifications, WorkManager for local reminders. 6,500+ downloads on Google Play.",
     "amazon-clone": "Search, categories, cart and checkout with GPay and Apple Pay; an admin panel for products and sales. Flutter on a Node, Express and MongoDB back end.",
     "whatsapp-clone": "Phone-number auth, one-to-one and group chat, media types, status updates and video calling. Flutter, Firebase and Riverpod.",
 };
 const ALSO = [
     { title: "The control room", sub: "A live, breakable model of the systems I run: 24 services, real queues, real timeouts, seven replayable incidents.", k: "live", href: "/room" },
-    { title: "Warehouse CCTV anomaly detection", sub: "MyRik · 35 cameras across 8 warehouses. Flags tampering, repositioning, blur and disconnection; per-zone person counting for live occupancy.", k: "2025" },
+    { title: "Warehouse CCTV anomaly detection", sub: "35 cameras across 8 warehouses. Flags tampering, repositioning, blur and disconnection; per-zone person counting for live occupancy.", k: "MyRik" },
 ];
 
 export default function ProjectsPage() {
@@ -62,9 +62,9 @@ export default function ProjectsPage() {
             <section className="rp-section">
                 <div className="rp-sh"><i>earlier</i><h2>Mobile, before the backend.</h2></div>
                 <div className="rows">
-                    {earlier.map((p) => (
+                    {earlier.map((p, i) => (
                         <Link key={p.slug} href={`/projects/${p.slug}`} className="row">
-                            <span className="n">{p.slug === "college-attendance-app" ? "2023" : "2022"}</span>
+                            <span className="n">{String(featured.length + i + 1).padStart(2, "0")}</span>
                             <span className="t"><b>{p.name}</b><span>{EARLIER[p.slug] || p.description}</span><span className="tags">{p.tools.slice(0, 4).map((t) => <span key={t} className="tag">{t}</span>)}</span></span>
                             <span className="k">Case study →</span>
                         </Link>

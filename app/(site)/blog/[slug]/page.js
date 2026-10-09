@@ -1,21 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DOMPurify from "isomorphic-dompurify";
-import { personalData } from "@/utils/data/personal-data";
-
-async function getBlog(slug) {
-    try {
-        const res = await fetch(`https://dev.to/api/articles/${personalData.devUsername}/${slug}`, { next: { revalidate: 3600 } });
-        if (!res.ok) return null;
-        return res.json();
-    } catch {
-        return null;
-    }
-}
+import { getArticle } from "@/app/lib/devto";
 
 export async function generateMetadata(props) {
     const { slug } = await props.params;
-    const blog = await getBlog(slug);
+    const blog = await getArticle(slug);
     if (!blog) return { title: "Article not found" };
     return {
         title: blog.title,
@@ -27,7 +17,7 @@ export async function generateMetadata(props) {
 
 export default async function BlogDetails(props) {
     const { slug } = await props.params;
-    const blog = await getBlog(slug);
+    const blog = await getArticle(slug);
     if (!blog) notFound();
 
     // dev.to publishes our own content, but the HTML is sanitised anyway

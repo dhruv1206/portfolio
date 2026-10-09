@@ -153,7 +153,7 @@ function TraceDock() {
                 <>
                     <div className={styles.tlines} ref={linesRef} aria-live="polite">
                         {tv.lines.map((l, i) => <div key={i} className={l.kind}><span>+{l.t} ms</span>{l.text}</div>)}
-                        {running && <div className={styles.tcur}><i />{tv.cur ? "at " + (NODE_BY_ID[tv.cur]?.label || tv.cur).toLowerCase() : "leaving"}</div>}
+                        {running && <div className={styles.tcur}><i />{tv.cur ? "at " + (NODE_BY_ID[tv.cur]?.label || tv.cur).toLowerCase() : "leaving"} · +{tv.now} ms{tv.now > 250 && s.traceSpeed < 1 ? " · waiting on a timeout? switch to real time" : ""}</div>}
                     </div>
                     {tv.hops.length > 0 && (
                         <div className={styles.thops}>
@@ -182,6 +182,7 @@ function Console() {
     const btn = (a: (typeof ACTIONS)[number]) => { const on = a.toggle ? !!(s.flags as unknown as Record<string, boolean>)[a.toggle] : false; return <button key={a.id} type="button" className={cx(styles.act, a.kind === "chaos" ? styles.chaos : styles.fix, on && "on")} aria-pressed={a.toggle ? on : undefined} title={a.explain} onClick={() => ctl.doAction(a.id)}><kbd>{a.key}</kbd><span>{a.label}</span></button>; };
     return (
         <section className={styles.console} aria-label="Console">
+            <div className={styles.phoneVerbs}><button type="button" onClick={() => (s.tour ? ctl.stopTour() : ctl.startTour())}>{s.tour ? "Stop the tour" : "Tour · 60 s"}</button><button type="button" onClick={() => ctl.fit()}>Fit</button><button type="button" onClick={() => ctl.openPanel("notes")}>How this works</button></div>
             <div className={styles.group}><h5>Chaos</h5><div className={styles.acts}>{ACTIONS.filter((a) => a.kind === "chaos").map(btn)}</div></div>
             <div className={styles.group}><h5>Fix</h5><div className={styles.acts}>{ACTIONS.filter((a) => a.kind === "fix").map(btn)}</div></div>
             <div className={styles.group}><h5>Load</h5><label htmlFor="cr-load" className={styles.loadVal}>{fmt(s.load)} rps</label><input id="cr-load" className={styles.range} type="range" min={60} max={1500} step={20} value={s.load} aria-label="Arrival rate" onChange={(e) => ctl.setLoad(+e.target.value)} /></div>

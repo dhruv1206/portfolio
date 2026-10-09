@@ -16,7 +16,7 @@ export interface ScenarioState { id: string; step: number; p99Start: number | nu
 export interface TraceLine { t: number; text: string; kind: "info" | "ok" | "warn" | "err" }
 export interface TraceHopView { node: string; label: string; wait: number; svc: number | null; queued?: number }
 /** One request followed through the model: the narrated lines, the per-hop timings, where it is now. */
-export interface TraceView { kind: string; label: string; city: string; running: boolean; latency: number; error?: string; hops: TraceHopView[]; lines: TraceLine[]; cur: string | null; t0: number }
+export interface TraceView { kind: string; label: string; city: string; running: boolean; latency: number; error?: string; hops: TraceHopView[]; lines: TraceLine[]; cur: string | null; t0: number; /** model ms since the request left, updated while it runs */ now: number }
 export interface TipState { node: NodeDef; x: number; y: number; rows: [string, string][] }
 export interface LocalRecords { maxRps: number; longestOutage: number; fastestRecovery: number; visits: number }
 
@@ -34,7 +34,7 @@ export interface RoomSnapshot {
 const fmt = (n: number, d = 0) => Number(n).toLocaleString("en-IN", { maximumFractionDigits: d });
 const TOUR: { c: string; w: number; f: (ctl: RoomController) => void }[] = [
     { c: "This is a live model of the systems I run. Every dot is a request.", w: 4500, f: (c) => c.fit() },
-    { c: "The bright one is you. Requests enter at the edge, pass the gateway and fan out to services.", w: 4500, f: (c) => c.trace() },
+    { c: "The bright one is you. Requests enter at the edge, pass the gateway and fan out to services.", w: 5000, f: (c) => c.trace("ride", 0.5) },
     { c: "Zoom into DStarDB: eight threads serving the cache. The keys are real; the REPL in the inspector reads them.", w: 5000, f: (c) => c.focus("cache", 2.6) },
     { c: "Now break something. Killing a worker backs up the queue; the autoscaler notices in a few seconds.", w: 6500, f: (c) => { c.focus("workers", 2.0); c.doAction("killWorker"); } },
     { c: "Kill the database primary. Writes fail, reads move to the replica, promotion takes about four seconds.", w: 7000, f: (c) => { c.focus("pg", 2.0); c.doAction("killDb"); } },
@@ -64,7 +64,8 @@ export class RoomController {
             records: { maxRps: 0, longestOutage: 0, fastestRecovery: 0, visits: 0 }, shared: {}, hist: { rps: [], p99: [], err: [], q: [] }, tip: null, version: 0,
         };
         this.sim.onLog = (e) => this.set({ log: [...this.snapshot.log.slice(-59), { ...e, rel: this.t0 ? (performance.now() - this.t0) / 1000 : 0 }] });
-        this.sim.onTrace = () => { if (!this.traceReq) this.set({ traceBusy: false }); };
+        // A `you` request that was not narrated (the boot packet) still lands in the rail as the last request.
+        this.sim.onTrace = (r) => { if (this.traceReq) return; const lat = Math.round(r.latency || 0); const k = TRACE_KINDS[0]; this.set({ traceBusy: false, trace: { kind: k.id, label: k.label, city: this.snapshot.city, running: false, latency: lat, error: r.error, hops: r.trace.map((t) => ({ node: t.node, label: NODE_BY_ID[t.node].label, wait: t.wait, svc: t.svc })), lines: [{ t: lat, text: (r.error ? "failed after " + lat + " ms · " + r.error : "done · " + lat + " ms end to end, in real time") + " · press Trace to follow one in slow motion", kind: r.error ? "err" : "ok" }], cur: null, t0: 0, now: lat } }); };
         this.sim.onHop = (r, ev) => this.onHop(r, ev);
         this.startPresence();
         this.sim.onMsg = () => { this.toast("delivered · the worker wrote it to storage and the message is on its way to my phone.", 5200); snd.chime(); if (this.msgCallback) this.msgCallback(); };
@@ -118,7 +119,10 @@ export class RoomController {
         }
         this.lastHealth = health;
         this.mergeRecords();
-        this.set({ metrics: { ...m }, flags: { ...this.sim.flags }, fps, health, hist, load: this.sim.load, replicas: { ride: this.sim.nodes.ride.replicas, workers: this.sim.nodes.workers.replicas } });
+        const tv = this.snapshot.trace; let trace = tv && tv.running ? { ...tv, now: Math.round(this.sim.now - tv.t0) } : tv;
+        // Slow motion is for watching, not waiting: after 12 real seconds (a request parked on a timeout) the rest runs at real time.
+        if (trace && trace.running && this.sim.speed < 1 && performance.now() - this.traceStartReal > 12000) { this.sim.speed = 1; trace = { ...trace, lines: [...trace.lines, { t: trace.now, text: "12 s in slow motion · the rest runs in real time", kind: "warn" }] }; }
+        this.set({ metrics: { ...m }, flags: { ...this.sim.flags }, fps, health, hist, trace, load: this.sim.load, replicas: { ride: this.sim.nodes.ride.replicas, workers: this.sim.nodes.workers.replicas } });
     }
 
     /* ---------- boot ---------- */
@@ -193,17 +197,20 @@ export class RoomController {
     }
     setLoad(n: number) { this.sim.load = n; this.set({ load: n }); }
     /* ---------- trace: one request in slow motion, narrated hop by hop ---------- */
-    private traceReq: Req | null = null; private traceArm = false; private traceEndT: ReturnType<typeof setTimeout> | null = null;
+    private traceReq: Req | null = null; private traceArm = false; private traceEndT: ReturnType<typeof setTimeout> | null = null; private traceStartReal = 0;
     openTrace() { const was = this.snapshot.traceOpen; this.set({ traceOpen: true, sheet: this.snapshot.mobile ? "trace" : this.snapshot.sheet }); if (!was) this.layout(); }
     closeTrace() { this.endTrace(); this.set({ traceOpen: false, sheet: this.snapshot.mobile && this.snapshot.sheet === "trace" ? "console" : this.snapshot.sheet }); this.layout(); }
     setTraceKind(id: string) { if (TRACE_KIND_BY_ID[id]) this.set({ traceKind: id }); }
     setTraceSpeed(x: number) { this.set({ traceSpeed: x }); if (this.traceReq && this.snapshot.trace?.running) this.sim.speed = x; }
-    trace(kind = this.snapshot.traceKind) {
-        if (!this.snapshot.booted) return; if (this.sim.you) { this.openTrace(); return; }
+    /** Follows one request. `speed` overrides the dock's setting for this trace only (the tour uses it). */
+    trace(kind = this.snapshot.traceKind, speed?: number) {
+        if (!this.snapshot.booted) return;
+        if (this.sim.you && !this.sim.active.includes(this.sim.you)) this.sim.you = null; // dropped by a reset while in flight
+        if (this.sim.you) { this.openTrace(); return; }
         const k = TRACE_KIND_BY_ID[kind] || TRACE_KINDS[0]; if (this.traceEndT) { clearTimeout(this.traceEndT); this.traceEndT = null; }
-        const view: TraceView = { kind: k.id, label: k.label, city: this.snapshot.city, running: true, latency: 0, hops: [], lines: [], cur: null, t0: this.sim.now };
+        const view: TraceView = { kind: k.id, label: k.label, city: this.snapshot.city, running: true, latency: 0, hops: [], lines: [], cur: null, t0: this.sim.now, now: 0 };
         const was = this.snapshot.traceOpen; this.set({ traceOpen: true, traceBusy: true, traceKind: k.id, sheet: this.snapshot.mobile ? "trace" : this.snapshot.sheet, trace: view }); if (!was && this.world) { this.layout(); }
-        this.sim.speed = this.snapshot.traceSpeed; this.traceArm = true;
+        this.sim.speed = speed ?? this.snapshot.traceSpeed; this.traceArm = true; this.traceStartReal = performance.now();
         const r = this.sim.trace(k.id); this.traceReq = r; this.traceArm = false;
         const path = r.plan.slice(); if (r.type === "ride") path.push("pg", "maps"); if (r.type === "product") path.push("readmodel", "pgr");
         if (this.world) { this.world.tracePath = new Set(path); this.world.fitNodes(path); }
@@ -238,7 +245,7 @@ export class RoomController {
             case "fail": running = false; error = ev.reason; latency = Math.round(ev.latency || 0); push("failed after " + latency + " ms · " + ev.reason, "err"); break;
             case "complete": { running = false; latency = Math.round(ev.latency || 0); const svc = hops.reduce((a, h) => a + (h.svc || 0), 0), wait = hops.reduce((a, h) => a + h.wait, 0); const wire = Math.max(0, latency - svc - wait); push("done · " + latency + " ms end to end: " + wire + " ms on the wire, " + wait + " ms waiting for threads, " + svc + " ms of work", "ok"); break; }
         }
-        this.set({ trace: { ...tv, hops, lines: lines.slice(-40), cur, running, latency, error }, traceBusy: running });
+        this.set({ trace: { ...tv, hops, lines: lines.slice(-40), cur, running, latency, error, now: t }, traceBusy: running });
         if (!running) { snd.tick(); this.traceEndT = setTimeout(() => this.endTrace(), 1500); }
     }
     private narrateArrive(r: Req, ev: HopEvent): string | null {
@@ -326,10 +333,10 @@ export class RoomController {
     /* ---------- tour ---------- */
     startTour() {
         this.stopTour(); this.closePanel(); this.endTrace(); this.set({ tour: true }); let i = 0;
-        const step = () => { if (!this.snapshot.tour) return; const s = TOUR[i]; if (!s) { this.stopTour(); this.caption("end of tour · the console is yours", 4000); return; } s.f(this); this.caption(s.c, s.w - 300); i++; this.tourT = setTimeout(step, s.w); };
+        const step = () => { if (!this.snapshot.tour) return; const s = TOUR[i]; if (!s) { this.stopTour(); this.caption("end of tour · the console is yours", 4000); return; } if (i !== 1 && this.snapshot.traceOpen) this.closeTrace(); s.f(this); this.caption(s.c, s.w - 300); i++; this.tourT = setTimeout(step, s.w); };
         step();
     }
-    stopTour() { if (this.tourT) clearTimeout(this.tourT); this.tourT = null; if (this.snapshot.tour) this.set({ tour: false }); }
+    stopTour() { if (this.tourT) clearTimeout(this.tourT); this.tourT = null; if (this.snapshot.tour) { this.set({ tour: false }); if (this.snapshot.traceOpen) this.closeTrace(); } }
 
     /* ---------- presence, ghosts, records ---------- */
     private startPresence() {
