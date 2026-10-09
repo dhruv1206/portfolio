@@ -42,3 +42,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*
+
+# superdesign (local design-context cache, drafts live on superdesign.dev)
+.superdesign/
