@@ -5,7 +5,7 @@
 import { NODES, NODE_BY_ID, EDGES, CTL_EDGES, NodeDef } from "./data";
 import type { Sim, NodeState } from "./sim";
 
-const C = { bg: "#050508", ink: "#f2f2f7", mute: "#6c6c82", violet: "#8b5cf6", cyan: "#22d3ee", pink: "#f472b6", amber: "#f59e0b", ok: "#34d399" };
+const C = { bg: "#050508", ink: "#f2f2f7", mute: "#78788e", violet: "#8b5cf6", cyan: "#22d3ee", pink: "#f472b6", amber: "#f59e0b", ok: "#34d399" };
 const KIND: Record<string, string> = { users: "rgba(242,242,247,0.35)", edge: "rgba(242,242,247,0.35)", svc: "rgba(242,242,247,0.42)", data: "rgba(34,211,238,0.5)", ext: "rgba(139,92,246,0.6)", ctl: "rgba(242,242,247,0.22)" };
 const PKT: Record<string, string> = { ride: C.cyan, product: "#7ee8f7", checkout: C.violet, ws: "rgba(242,242,247,0.85)", job: C.amber, cron: C.amber, msg: C.ink };
 const BOUNDS = { x0: 40, y0: 50, x1: 1560, y1: 810 };

@@ -40,7 +40,7 @@
     /* Text */
     --color-text-primary: #ffffff;
     --color-text-secondary: #a1a1aa;
-    --color-text-muted: #71717a;
+    --color-text-muted: #797982; /* 4.7:1 on the page, 4.55:1 on #0b0b12 panels (WCAG AA small text) */
 
     /* Glassmorphism */
     --glass-bg: rgba(15, 15, 45, 0.5);
@@ -863,6 +863,16 @@ select:focus-visible,
 }
 .ledger a:hover {
     color: var(--color-text-primary);
+}
+/* Links inside the colophon's sentences need more than colour to stand
+   out from the text around them: the hairline the lede's links have
+   (.rp-lede a in reading.scss). */
+.colophon a {
+    border-bottom: 1px solid var(--color-border-hover);
+    transition: border-color 0.2s;
+}
+.colophon a:hover {
+    border-color: currentColor;
 }
 .colophon {
     grid-column: 1 / -1;

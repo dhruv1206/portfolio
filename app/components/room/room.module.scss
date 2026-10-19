@@ -1,6 +1,6 @@
 /* Control room styles. Tokens are local to the room so the reading pages keep their own. */
 .root {
-  --bg: #050508; --bg2: #0b0b12; --ink: #f2f2f7; --ink2: #a9a9bd; --mute: #6c6c82; --line: rgba(242, 242, 247, .10); --line2: rgba(242, 242, 247, .22);
+  --bg: #050508; --bg2: #0b0b12; --ink: #f2f2f7; --ink2: #a9a9bd; --mute: #78788e; --line: rgba(242, 242, 247, .10); --line2: rgba(242, 242, 247, .22);
   --violet: #8b5cf6; --cyan: #22d3ee; --pink: #f472b6; --amber: #f59e0b; --ok: #34d399;
   --fd: var(--font-display), system-ui, sans-serif; --fb: var(--font-body), system-ui, sans-serif; --fm: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --bar: 56px; --strip: 44px; --rail: 256px; --console: 170px; --gut: 16px;
