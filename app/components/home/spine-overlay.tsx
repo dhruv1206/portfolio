@@ -53,8 +53,11 @@ export default function SpineOverlay() {
             const footer = document.querySelector("footer"); if (footer && gl) { const dim = footer.getBoundingClientRect().top < innerHeight * 0.92 ? 0.22 : 1; if (dim !== lastDim) { lastDim = dim; gl.style.opacity = String(dim); } }
         };
         const onResize = () => { centers(); onScroll(); };
-        addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onResize); onScroll(); const t1 = setTimeout(onResize, 600); const t2 = setTimeout(onResize, 2000);
-        return () => { removeEventListener("scroll", onScroll); removeEventListener("resize", onResize); clearTimeout(t1); clearTimeout(t2); };
+        // first measure, and again whenever fonts or images change the page's height: a ResizeObserver reports after layout, so
+        // these reads never force one (measuring on mount did, on every load); the resize listener covers height-only viewport changes
+        const ro = new ResizeObserver(onResize); ro.observe(document.documentElement);
+        addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onResize);
+        return () => { ro.disconnect(); removeEventListener("scroll", onScroll); removeEventListener("resize", onResize); };
     }, []);
 
     // keys: D starts the director's cut, Esc stops it; ⌘K belongs to the global palette
