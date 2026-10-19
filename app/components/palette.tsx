@@ -12,16 +12,20 @@ import styles from "./palette.module.scss";
 import { getCommands, getServerCommands, subscribeCommands, type Command } from "@/app/lib/commands";
 import { useAudio } from "@/app/providers/audio-provider";
 import { personalData } from "@/utils/data/personal-data";
+import { BLOG_HOST, blogUrl, siteUrl } from "@/app/lib/origins";
+import { go } from "@/app/lib/navigate";
 
 const VoiceControlButton = dynamic(() => import("./ui/voice-control-button"), { ssr: false });
 
+// Absolute when the blog has its own subdomain, so every entry works from
+// either host (app/lib/origins.js).
 const PAGES: Command[] = [
-    { id: "go-home", title: "Home", detail: "one particle system, six stages", keys: "/", href: "/", group: "Go to" },
-    { id: "go-room", title: "Control room", detail: "break my production systems and watch them heal", keys: "/room", href: "/room", group: "Go to" },
-    { id: "go-projects", title: "Projects", detail: "three machines you can run", keys: "/projects", href: "/projects", group: "Go to" },
-    { id: "go-lab", title: "Lab", detail: "seven live physics experiments", keys: "/lab", href: "/lab", group: "Go to" },
-    { id: "go-r", title: "Recruiter mode", detail: "TL;DR, paste-a-JD fit score, tailored PDF", keys: "/r", href: "/r", group: "Go to" },
-    { id: "go-blog", title: "Blog", detail: "articles, syndicated from dev.to", keys: "/blog", href: "/blog", group: "Go to" },
+    { id: "go-home", title: "Home", detail: "one particle system, six stages", keys: "/", href: siteUrl("/"), group: "Go to" },
+    { id: "go-room", title: "Control room", detail: "break my production systems and watch them heal", keys: "/room", href: siteUrl("/room"), group: "Go to" },
+    { id: "go-projects", title: "Projects", detail: "three machines you can run", keys: "/projects", href: siteUrl("/projects"), group: "Go to" },
+    { id: "go-lab", title: "Lab", detail: "seven live physics experiments", keys: "/lab", href: siteUrl("/lab"), group: "Go to" },
+    { id: "go-r", title: "Recruiter mode", detail: "TL;DR, paste-a-JD fit score, tailored PDF", keys: "/r", href: siteUrl("/r"), group: "Go to" },
+    { id: "go-blog", title: "Blog", detail: "articles, syndicated from dev.to", keys: BLOG_HOST || "/blog", href: blogUrl(), group: "Go to" },
 ];
 const cx = (...a: (string | false | undefined | null)[]) => a.filter(Boolean).join(" ");
 
@@ -60,8 +64,7 @@ export default function Palette() {
     const run = (c: Command) => {
         close();
         if (c.run) { c.run(); return; }
-        if (!c.href) return;
-        if (/^https?:/.test(c.href)) window.open(c.href, "_blank", "noopener,noreferrer"); else router.push(c.href);
+        if (c.href) go(router, c.href);
     };
     const onKey = (e: React.KeyboardEvent) => {
         if (e.key === "ArrowDown") { e.preventDefault(); setSel((i) => (i + 1) % Math.max(1, items.length)); }

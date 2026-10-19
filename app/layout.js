@@ -95,7 +95,9 @@ export default function RootLayout({ children }) {
                     {children}
                 </ClientProviders>
                 <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM} />
-                <SpeedInsights />
+                {/* The Speed Insights script is served only by Vercel; anywhere
+                    else (next start, CI) it is a 404 in the console. */}
+                {process.env.VERCEL ? <SpeedInsights /> : null}
             </body>
         </html>
     );

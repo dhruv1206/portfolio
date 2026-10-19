@@ -4,7 +4,7 @@
    mono eyebrows, Archivo display type, squared mono buttons.
    ============================================================ */
 .rp {
-  --ink: #f2f2f7; --ink2: #a9a9bd; --mute: #6c6c82; --line: rgba(242, 242, 247, .09); --line2: rgba(242, 242, 247, .22);
+  --ink: #f2f2f7; --ink2: #a9a9bd; --mute: #78788e; --line: rgba(242, 242, 247, .09); --line2: rgba(242, 242, 247, .22);
   --cyan: #22d3ee; --violet: #8b5cf6; --pink: #f472b6; --ok: #34d399; --amber: #f59e0b; --bg: #050508; --bg2: #0b0b12;
   --fd: var(--font-display), system-ui, sans-serif; --fb: var(--font-body), system-ui, sans-serif; --fm: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   position: relative; padding: calc(56px + clamp(40px, 8vh, 88px)) 0 clamp(64px, 10vh, 120px); color: var(--ink); font: 400 15px/1.55 var(--fb);
@@ -91,6 +91,9 @@ a.row:hover .t b { color: var(--cyan); }
 .spin { width: 28px; height: 28px; border: 1px solid var(--line2); border-top-color: var(--cyan); border-radius: 50%; animation: rspin .9s linear infinite; }
 @keyframes rspin { to { transform: rotate(360deg); } }
 .spin-wrap { width: 100%; height: 100%; min-height: 160px; display: flex; align-items: center; justify-content: center; gap: 12px; font-family: var(--fm); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+/* For live reads: the space is held at once, the spinner only shows if the read is slow. */
+.spin-late { animation: spin-late-in 0s linear .35s both; }
+@keyframes spin-late-in { from { visibility: hidden; } to { visibility: visible; } }
 
 /* ---------- the legacy demos (REPL, WebRTC room, pipeline) inside a cell ---------- */
 .demo-cell { border: 1px solid var(--line); background: rgba(5, 5, 8, .6); }

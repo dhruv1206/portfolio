@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { projectsData } from "@/utils/data/projects-data";
+import { siteUrl } from "@/app/lib/origins";
+
+// Also rendered for a missing article on the blog subdomain, so every
+// link is built with siteUrl (absolute when the blog has its own host).
 
 export const metadata = { title: "Not found" };
 
@@ -20,15 +24,15 @@ export default function NotFound() {
                 </header>
                 <div className="rows">
                     {projectsData.slice(0, 3).map((p, i) => (
-                        <Link key={p.slug} href={`/projects/${p.slug}`} className="row"><span className="n">{String(i + 1).padStart(2, "0")}</span><span className="t"><b>{p.name}</b><span>{p.role} · case study with a live demo</span></span><span className="k">Open →</span></Link>
+                        <Link key={p.slug} href={siteUrl(`/projects/${p.slug}`)} className="row"><span className="n">{String(i + 1).padStart(2, "0")}</span><span className="t"><b>{p.name}</b><span>{p.role} · case study with a live demo</span></span><span className="k">Open →</span></Link>
                     ))}
                     {ROUTES.map((r) => (
-                        <Link key={r.k} href={r.k} className="row"><span className="n">{r.k}</span><span className="t"><b>{r.title}</b><span>{r.sub}</span></span><span className="k">Open →</span></Link>
+                        <Link key={r.k} href={siteUrl(r.k)} className="row"><span className="n">{r.k}</span><span className="t"><b>{r.title}</b><span>{r.sub}</span></span><span className="k">Open →</span></Link>
                     ))}
                 </div>
                 <div className="btns" style={{ marginTop: 32 }}>
-                    <Link href="/" className="mbtn mbtn-primary">Go home</Link>
-                    <Link href="/#s5" className="mbtn">Open a connection</Link>
+                    <Link href={siteUrl("/")} className="mbtn mbtn-primary">Go home</Link>
+                    <Link href={siteUrl("/#s5")} className="mbtn">Open a connection</Link>
                 </div>
             </div>
         </main>

@@ -1,7 +1,85 @@
 const path = require("path");
+const dns = require("dns");
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
     enabled: process.env.ANALYZE === "true",
 });
+
+// ---------------------------------------------------------------------------
+// The blog's own subdomain.
+//
+// Production serves the blog from https://blog.dhruuv.me; `next dev` and
+// preview deployments keep it at /blog on one host. BLOG_ORIGIN overrides
+// the production default (`off` disables the subdomain, a URL changes it).
+//
+// The subdomain only switches on once its hostname resolves. Moving the
+// blog means 308s that browsers cache for good, so a deploy that ran
+// before the DNS record existed would send every old /blog link to a
+// host that does not exist. A definite "no such host" keeps the blog at
+// /blog for that build; any other DNS trouble is treated as transient so
+// the setting does not flap between deploys.
+// ---------------------------------------------------------------------------
+const PRODUCTION_BLOG_ORIGIN = "https://blog.dhruuv.me";
+
+async function resolveBlogOrigin() {
+    const explicit = (process.env.BLOG_ORIGIN || "").trim();
+    if (explicit === "off") return "";
+    const origin = (explicit || (process.env.VERCEL_ENV === "production" ? PRODUCTION_BLOG_ORIGIN : "")).replace(/\/+$/, "");
+    if (!origin) return "";
+    const { hostname } = new URL(origin);
+    if (hostname === "localhost" || hostname.endsWith(".localhost")) return origin;
+    try {
+        await Promise.race([
+            dns.promises.lookup(hostname),
+            new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "ETIMEOUT" })), 4000)),
+        ]);
+        return origin;
+    } catch (err) {
+        if (err && err.code === "ENOTFOUND") {
+            console.warn(`[blog] ${hostname} does not resolve yet, so this build keeps the blog at /blog. Add the DNS record, then redeploy.`);
+            return "";
+        }
+        return origin;
+    }
+}
+
+// The main site's origin, for links from the blog back to it.
+function siteOriginFor(blogOrigin) {
+    const fromEnv = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "");
+    if (fromEnv) return fromEnv;
+    const url = new URL(blogOrigin);
+    url.hostname = url.hostname.replace(/^blog\./, "");
+    return url.origin;
+}
+
+const escapeHost = (host) => host.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function blogRedirects(blog, site) {
+    const onBlog = [{ type: "host", value: escapeHost(new URL(blog).hostname) }];
+    const sections = ["/room", "/projects", "/projects/:path*", "/lab", "/lab/:path*", "/r"];
+    return [
+        // Old links to the blog on the main site move to the subdomain.
+        { source: "/blog", missing: onBlog, destination: `${blog}/`, permanent: true },
+        { source: "/blog/:slug", missing: onBlog, destination: `${blog}/:slug`, permanent: true },
+        // On the subdomain, /blog/... would be every page twice.
+        { source: "/blog", has: onBlog, destination: "/", permanent: true },
+        { source: "/blog/:slug", has: onBlog, destination: "/:slug", permanent: true },
+        // The rest of the site asked for on the blog host goes home.
+        ...sections.map((source) => ({ source, has: onBlog, destination: `${site}${source}`, permanent: true })),
+    ];
+}
+
+// beforeFiles: these must win over the real homepage at `/`. A slug is
+// one path segment without a dot, so /_next, /api, favicon.ico and every
+// static file pass through untouched. Order matters: rewrites apply in
+// sequence, so with `/` first, `/` → `/blog` would then match the slug
+// rule as the slug "blog" and land on /blog/blog.
+function blogRewrites(blog) {
+    const onBlog = [{ type: "host", value: escapeHost(new URL(blog).hostname) }];
+    return [
+        { source: "/:slug([A-Za-z0-9][A-Za-z0-9_-]*)", has: onBlog, destination: "/blog/:slug" },
+        { source: "/", has: onBlog, destination: "/blog" },
+    ];
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -94,4 +172,18 @@ const nextConfig = {
     },
 };
 
-module.exports = withBundleAnalyzer(nextConfig);
+module.exports = async () => {
+    const blog = await resolveBlogOrigin();
+    const site = blog ? siteOriginFor(blog) : "";
+    return withBundleAnalyzer({
+        ...nextConfig,
+        // Inlined for app/lib/origins.js; "" means the blog lives at /blog.
+        env: { ...nextConfig.env, BLOG_ORIGIN: blog, SITE_ORIGIN: site },
+        async redirects() {
+            return blog ? blogRedirects(blog, site) : [];
+        },
+        async rewrites() {
+            return blog ? { beforeFiles: blogRewrites(blog), afterFiles: [], fallback: [] } : [];
+        },
+    });
+};

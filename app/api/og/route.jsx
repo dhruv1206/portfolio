@@ -24,7 +24,7 @@ function loadArchivo() {
     return archivoPromise;
 }
 
-const INK = "#f2f2f7", INK2 = "#a9a9bd", MUTE = "#6c6c82", LINE = "rgba(242,242,247,0.22)", LINE2 = "rgba(242,242,247,0.12)";
+const INK = "#f2f2f7", INK2 = "#a9a9bd", MUTE = "#78788e", LINE = "rgba(242,242,247,0.22)", LINE2 = "rgba(242,242,247,0.12)";
 
 export async function GET(request) {
     try {

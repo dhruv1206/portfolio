@@ -2,6 +2,9 @@
 
 // Site bar, shared by every page: the DA mark, the current path, and a
 // row of mono links. Hairline and backdrop appear once the page scrolls.
+// `site="blog"` is the bar on the blog, which in production is served
+// from its own subdomain: its links back to the main site are absolute,
+// and Blog is the active section whatever the path says.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -9,6 +12,7 @@ import { usePathname } from "next/navigation";
 import { personalData } from "@/utils/data/personal-data";
 import { useAudio } from "@/app/providers/audio-provider";
 import { togglePalette } from "@/app/lib/commands";
+import { blogUrl, siteUrl } from "@/app/lib/origins";
 
 const LINKS = [
     { name: "Home", href: "/" },
@@ -22,13 +26,13 @@ const LINKS = [
 // `usePathname` is dynamic during prerendering, so the path-aware bar
 // streams in under a Suspense boundary while NavbarShell (identical
 // markup, no active state) sits in the static HTML.
-export default function Navbar() {
+export default function Navbar({ site = "main" }) {
     const pathname = usePathname() || "/";
     // The room never scrolls, so its bar keeps the hairline and backdrop.
-    return <NavbarShell pathname={pathname} solid={pathname.startsWith("/room")} />;
+    return <NavbarShell pathname={pathname} site={site} solid={pathname.startsWith("/room")} />;
 }
 
-export function NavbarShell({ pathname = "/", solid = false }) {
+export function NavbarShell({ pathname = "/", solid = false, site = "main" }) {
     const [scrolled, setScrolled] = useState(false);
     const [open, setOpen] = useState(false);
     const audio = useAudio();
@@ -45,18 +49,22 @@ export function NavbarShell({ pathname = "/", solid = false }) {
         return () => window.removeEventListener("scroll", onScroll);
     }, []);
 
-    const active = (href) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
-    const section = pathname === "/" ? "" : pathname.split("/")[1];
+    const onBlog = site === "blog";
+    // On the blog the path is the blog's own (`/` or `/<slug>` on its
+    // subdomain), so it cannot tell which section is active.
+    const active = (href) => (onBlog ? href === "/blog" : href === "/" ? pathname === "/" : pathname.startsWith(href));
+    const section = onBlog ? "blog" : pathname === "/" ? "" : pathname.split("/")[1];
+    const hrefFor = (href) => (href === "/blog" ? blogUrl() : onBlog ? siteUrl(href) : href);
 
     return (
         <header className={`site-bar${scrolled || solid ? " is-scrolled" : ""}`}>
-            <Link href="/" className="site-mark" onClick={() => setOpen(false)}>
+            <Link href={onBlog ? siteUrl("/") : "/"} className="site-mark" onClick={() => setOpen(false)}>
                 <b>DA</b>
                 <span>dhruuv.me{section ? <i> / {section}</i> : null}</span>
             </Link>
             <nav className={`site-links${open ? " is-open" : ""}`} aria-label="Site">
                 {LINKS.map((l) => (
-                    <Link key={l.href} href={l.href} className={active(l.href) ? "is-active" : ""} onClick={() => setOpen(false)}>
+                    <Link key={l.href} href={hrefFor(l.href)} className={active(l.href) ? "is-active" : ""} onClick={() => setOpen(false)}>
                         {l.name}
                     </Link>
                 ))}
