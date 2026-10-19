@@ -156,6 +156,11 @@ try {
     await page.waitForFunction(() => { const img = document.querySelector(".g3 img"); return img && img.complete && img.naturalWidth > 0; }, null, { timeout: 15000 }).catch(() => {});
     const cover = await page.evaluate(() => { const img = document.querySelector(".g3 img"); return img ? { src: img.getAttribute("src"), loaded: img.complete && img.naturalWidth > 0 } : null; });
     check("a media2.dev.to cover loads straight from dev.to, not through the optimizer", cover && cover.loaded && cover.src.startsWith("https://media2.dev.to/"), JSON.stringify(cover));
+    // At 1x, Chrome picks a srcset width at least as wide as `sizes` says the
+    // cover renders, so a narrower file means `sizes` understates it and the
+    // cover is stretched.
+    const fit = await page.evaluate(() => { const img = document.querySelector(".g3 img"); const box = img.getBoundingClientRect(); const num = (k) => +(img.currentSrc.match(new RegExp(`${k}=(\\d+)`)) || [])[1]; return { file: num("width"), renders: Math.round(Math.max(box.width, (box.height * num("width")) / num("height"))), quality: num("quality") }; });
+    check("the cover is fetched at quality 85 and is not stretched", fit.quality === 85 && fit.file >= fit.renders, JSON.stringify(fit));
     check("on the blog host the bar reads 'dhruuv.me / blog', Blog is active, Home leaves the subdomain", bar.mark === "DAdhruuv.me / blog" && bar.active === "Blog" && bar.home === `${SITE}/` && bar.markHref === `${SITE}/`, JSON.stringify(bar));
     await page.click("text=Second post");
     await page.waitForURL(`${BLOG}/second-post-cd34`); await page.waitForSelector("text=Fresh body.");
