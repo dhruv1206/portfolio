@@ -827,7 +827,8 @@ select:focus-visible,
     color: var(--color-text-secondary);
     background: var(--color-bg-primary);
 }
-.ledger h4 {
+/* h2, not h4: they follow each page's h1/h2, and heading levels may not skip. */
+.ledger h2 {
     margin: 0 0 10px;
     font-family: var(--font-mono), ui-monospace, monospace;
     font-size: 10px;

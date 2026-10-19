@@ -23,7 +23,7 @@ export default function Footer({ site = "main" }) {
     return (
         <footer className="ledger">
             <div>
-                <h4>Education</h4>
+                <h2>Education</h2>
                 <ul>
                     <li><b>B.Tech Computer Science</b></li>
                     <li>Lakshmi Narain College of Technology, Bhopal</li>
@@ -31,14 +31,14 @@ export default function Footer({ site = "main" }) {
                 </ul>
             </div>
             <div>
-                <h4>Lab · live experiments</h4>
+                <h2>Lab · live experiments</h2>
                 <ul>
                     <li>{LAB.slice(0, 3).map((l, i) => <span key={l[1]}>{i > 0 && " · "}<Link href={href(l[1])}>{l[0]}</Link></span>)}</li>
                     <li>{LAB.slice(3).map((l, i) => <span key={l[1]}>{i > 0 && " · "}<Link href={href(l[1])}>{l[0]}</Link></span>)}</li>
                 </ul>
             </div>
             <div>
-                <h4>Keys</h4>
+                <h2>Keys</h2>
                 <ul>
                     <li><kbd>⌘K</kbd> modes: director&apos;s cut, control room, recruiter, résumé, terminal</li>
                     <li><kbd>`</kbd> web-vitals readout</li>

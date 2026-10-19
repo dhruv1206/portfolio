@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { blogUrl } from "@/app/lib/origins";
+import DevtoCover from "./devto-cover";
 
 // One article from dev.to, linking to the mirrored copy on the blog.
 function BlogCard({ blog }) {
@@ -12,10 +12,7 @@ function BlogCard({ blog }) {
         <Link href={blogUrl(blog.slug)} className="cell" style={{ display: "flex", flexDirection: "column" }}>
             {blog.cover_image && (
                 <div style={{ position: "relative", aspectRatio: "2 / 1", borderBottom: "1px solid var(--line)" }}>
-                    {/* dev.to already serves covers resized and re-encoded (width=1000, format=auto)
-                        from hosts that change (media.dev.to, media2.dev.to, …). Sending them through
-                        Vercel's optimizer adds nothing, and an unlisted host makes it answer 400. */}
-                    <Image src={blog.cover_image} alt="" fill unoptimized style={{ objectFit: "cover" }} />
+                    <DevtoCover src={blog.cover_image} />
                 </div>
             )}
             <div className="cell-h"><span>{date}</span>{blog.reading_time_minutes ? <span>{blog.reading_time_minutes} min read</span> : null}{typeof blog.public_reactions_count === "number" && blog.public_reactions_count > 0 && <span className="r">{blog.public_reactions_count} reactions</span>}</div>
