@@ -1,9 +1,11 @@
 // Server Component: the ledger at the foot of every page. Education,
 // the lab index and the keyboard modes, then a colophon. The build
 // year comes from next.config.js's env so the route stays static.
+// `site="blog"`: on the blog subdomain the links back are absolute.
 
 import Link from "next/link";
 import { personalData } from "@/utils/data/personal-data";
+import { siteUrl } from "@/app/lib/origins";
 
 const LAB = [
     ["Wave equation", "/lab/wave-equation"],
@@ -15,8 +17,9 @@ const LAB = [
     ["Fourier", "/lab/fourier"],
 ];
 
-export default function Footer() {
+export default function Footer({ site = "main" }) {
     const year = process.env.BUILD_YEAR;
+    const href = (path) => (site === "blog" ? siteUrl(path) : path);
     return (
         <footer className="ledger">
             <div>
@@ -30,8 +33,8 @@ export default function Footer() {
             <div>
                 <h4>Lab · live experiments</h4>
                 <ul>
-                    <li>{LAB.slice(0, 3).map((l, i) => <span key={l[1]}>{i > 0 && " · "}<Link href={l[1]}>{l[0]}</Link></span>)}</li>
-                    <li>{LAB.slice(3).map((l, i) => <span key={l[1]}>{i > 0 && " · "}<Link href={l[1]}>{l[0]}</Link></span>)}</li>
+                    <li>{LAB.slice(0, 3).map((l, i) => <span key={l[1]}>{i > 0 && " · "}<Link href={href(l[1])}>{l[0]}</Link></span>)}</li>
+                    <li>{LAB.slice(3).map((l, i) => <span key={l[1]}>{i > 0 && " · "}<Link href={href(l[1])}>{l[0]}</Link></span>)}</li>
                 </ul>
             </div>
             <div>
@@ -44,7 +47,7 @@ export default function Footer() {
             </div>
             <div className="colophon">
                 <span>© {year} Dhruv Agrawal · <a href={personalData.linkedIn} target="_blank" rel="noopener noreferrer">LinkedIn</a> · <a href={personalData.github} target="_blank" rel="noopener noreferrer">GitHub</a></span>
-                <span>one particle system, five layers · <Link href="/room">the control room</Link> is one click away</span>
+                <span>one particle system, five layers · <Link href={href("/room")}>the control room</Link> is one click away</span>
             </div>
         </footer>
     );

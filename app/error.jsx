@@ -5,6 +5,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { siteUrl } from "@/app/lib/origins";
 
 export default function ErrorPage({ error, reset }) {
     useEffect(() => { console.error(error); }, [error]);
@@ -19,8 +20,8 @@ export default function ErrorPage({ error, reset }) {
                 </header>
                 <div className="btns">
                     <button type="button" className="mbtn mbtn-primary" onClick={() => reset()}>Try again</button>
-                    <Link href="/" className="mbtn">Go home</Link>
-                    <Link href="/#s5" className="mbtn mbtn-ghost">Tell me about it</Link>
+                    <Link href={siteUrl("/")} className="mbtn">Go home</Link>
+                    <Link href={siteUrl("/#s5")} className="mbtn mbtn-ghost">Tell me about it</Link>
                 </div>
             </div>
         </main>

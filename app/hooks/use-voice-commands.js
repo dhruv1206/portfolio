@@ -6,6 +6,8 @@ import { toast } from "react-toastify";
 import { ACTION_SCRIPTS, PROJECT_SCRIPTS } from "./use-system-voice";
 import { useFeatureSupport } from "./use-feature-support";
 import { eventBus } from "@/app/lib/event-bus";
+import { blogUrl, onBlogHost, siteUrl } from "@/app/lib/origins";
+import { go } from "@/app/lib/navigate";
 
 // ============================================================================
 // STOP WORDS & NORMALIZATION
@@ -513,8 +515,11 @@ export function useVoiceCommands() {
         
         // The homepage is six stages: #s0 name, #s1 people, #s2 systems,
         // #s3 machines, #s4 stack, #s5 contact. Other targets are routes.
+        // On the blog subdomain `/` is the blog index, not the homepage, so
+        // targets are built with siteUrl/blogUrl and opened with go().
+        const onHome = () => window.location.pathname === "/" && !onBlogHost();
         const goStage = (id) => {
-            if (window.location.pathname !== "/") router.push(`/#${id}`);
+            if (!onHome()) go(router, siteUrl(`/#${id}`));
             else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
         };
         const focusIn = (selector, prefill) => setTimeout(() => {
@@ -522,12 +527,12 @@ export function useVoiceCommands() {
             if (!el) return;
             el.focus();
             if (prefill && !el.value) el.value = prefill;
-        }, window.location.pathname === "/" ? 500 : 900);
+        }, onHome() ? 500 : 900);
         switch (action) {
             case "filter-backend":
             case "filter-frontend":
             case "show-projects":
-                router.push("/projects");
+                go(router, siteUrl("/projects"));
                 break;
             case "go-contact":
                 goStage("s5");
@@ -541,7 +546,7 @@ export function useVoiceCommands() {
                 focusIn('#s5 textarea[name="message"]', "Project inquiry: ");
                 break;
             case "go-home":
-                if (window.location.pathname !== "/") router.push("/");
+                if (!onHome()) go(router, siteUrl("/"));
                 else window.scrollTo({ top: 0, behavior: "smooth" });
                 break;
             case "go-about":
@@ -556,20 +561,20 @@ export function useVoiceCommands() {
             case "go-education": {
                 const footer = document.querySelector("footer");
                 if (footer) footer.scrollIntoView({ behavior: "smooth" });
-                else router.push("/");
+                else go(router, siteUrl("/"));
                 break;
             }
             case "go-room":
-                router.push("/room");
+                go(router, siteUrl("/room"));
                 break;
             case "go-lab":
-                router.push("/lab");
+                go(router, siteUrl("/lab"));
                 break;
             case "go-recruiter":
-                router.push("/r");
+                go(router, siteUrl("/r"));
                 break;
             case "go-blog":
-                router.push("/blog");
+                go(router, blogUrl());
                 break;
             case "scroll-bottom":
                 window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
@@ -607,9 +612,9 @@ export function useVoiceCommands() {
             default:
                 if (action.startsWith("project:")) {
                     const slug = action.replace("project:", "");
-                    router.push(`/projects/${slug}`);
+                    go(router, siteUrl(`/projects/${slug}`));
                 } else if (action.startsWith("filter-tech:")) {
-                    router.push("/projects");
+                    go(router, siteUrl("/projects"));
                 }
         }
     }, [router]);
