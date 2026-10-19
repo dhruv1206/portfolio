@@ -18,7 +18,8 @@ function harness(responses) {
         const { status = 200, body = [], headers = {} } = next;
         return new Response(JSON.stringify(body), { status, headers });
     };
-    const feed = createFeed({ fetch, now: () => clock, ttlMs: 10_000, retryMs: 5_000, throttleMs: 30_000 });
+    // The upstream budget is switched off here; it has its own tests below.
+    const feed = createFeed({ fetch, now: () => clock, ttlMs: 10_000, retryMs: 5_000, throttleMs: 30_000, burst: 1e9, perMinute: 1e12 });
     return { feed, calls, tick: (ms) => { clock += ms; } };
 }
 const LIST = "https://dev.to/api/articles?username=x&per_page=1000";
@@ -125,12 +126,45 @@ test("429 without Retry-After pauses for the default throttle window", async () 
 
 test("memory stays bounded however many distinct keys are asked for", async () => {
     const h = harness([{ status: 404 }]);
-    const feed = createFeed({ fetch: (...a) => { h.calls.push(a); return Promise.resolve(new Response("{}", { status: 404 })); }, now: () => 0, maxKeys: 3 });
+    const feed = createFeed({ fetch: (...a) => { h.calls.push(a); return Promise.resolve(new Response("{}", { status: 404 })); }, now: () => 0, maxKeys: 3, burst: 1e9, perMinute: 1e12 });
     for (const k of ["a-1", "b-1", "c-1", "d-1"]) await feed.read(k, `https://dev.to/api/articles/x/${k}`);
     await feed.read("a-1", "https://dev.to/api/articles/x/a-1"); // evicted, so it is asked again
     assert.equal(h.calls.length, 5);
     await feed.read("d-1", "https://dev.to/api/articles/x/d-1"); // still remembered
     assert.equal(h.calls.length, 5);
+});
+
+test("upstream reads stay inside a per-instance budget, with the last token kept for the list", async () => {
+    let clock = 0; const calls = [];
+    const feed = createFeed({ fetch: async (url) => { calls.push(url); return new Response("{}", { status: 200 }); }, now: () => clock, burst: 3, perMinute: 20 });
+    // Ten different articles at once: only two upstream reads; the rest answer from memory (nothing yet).
+    const burst = await Promise.all(Array.from({ length: 10 }, (_, i) => feed.read(`article:${i}`, `https://dev.to/api/articles/x/a-${i}`)));
+    assert.equal(calls.length, 2);
+    assert.equal(burst.filter((r) => r.status === "unavailable").length, 8);
+    // The list still gets the reserved token.
+    assert.equal((await feed.read("list", "https://dev.to/api/articles?username=x", { priority: "high" })).status, "ok");
+    assert.equal(calls.length, 3);
+    assert.equal((await feed.read("list2", "https://dev.to/api/articles?username=y", { priority: "high" })).status, "unavailable");
+    // Twenty a minute: one token every three seconds.
+    clock += 2_999;
+    await feed.read("article:x", "https://dev.to/api/articles/x/a-x", { priority: "high" });
+    assert.equal(calls.length, 3);
+    clock += 2;
+    await feed.read("article:x", "https://dev.to/api/articles/x/a-x", { priority: "high" });
+    assert.equal(calls.length, 4);
+});
+
+test("Retry-After is capped, so dev.to cannot freeze the blog for an hour", async () => {
+    let clock = 0; const calls = [];
+    const responses = [new Response("x", { status: 429, headers: { "retry-after": "3600" } })];
+    const feed = createFeed({ fetch: async (url) => { calls.push(url); return responses.shift() || new Response("[]", { status: 200 }); }, now: () => clock, maxThrottleMs: 120_000, burst: 1e9, perMinute: 1e12 });
+    await feed.read("list", "https://dev.to/api/articles?username=x");
+    clock += 119_999;
+    await feed.read("list", "https://dev.to/api/articles?username=x");
+    assert.equal(calls.length, 1);
+    clock += 2;
+    assert.equal((await feed.read("list", "https://dev.to/api/articles?username=x")).status, "ok");
+    assert.equal(calls.length, 2);
 });
 
 test("slug shape: real dev.to slugs pass, scanner paths do not", () => {

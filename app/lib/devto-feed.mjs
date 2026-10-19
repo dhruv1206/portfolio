@@ -16,14 +16,22 @@
 //   traffic arrives.
 // - 404 is an answer; everything else is a failure. A 429 or a 5xx must
 //   not render as "not found" or "nothing published".
-// - The last good answer, a retry pause and dev.to's Retry-After: when
-//   dev.to fails or throttles, keep serving what it last said, and do not
-//   ask again until the pause (or the throttle window) has passed.
+// - An upstream budget per instance (bursts of 3, refilling at 20 a
+//   minute): per-key windows alone do not bound the total, since a client
+//   cycling through many keys could still spend the per-IP limit. One
+//   token stays in reserve for high-priority reads (the article list),
+//   so a flood of article reads cannot starve the list.
+// - The last good answer, a retry pause and dev.to's Retry-After (capped):
+//   when dev.to fails, throttles or the budget is spent, keep serving what
+//   it last said, and do not ask again until the pause has passed.
 
 const DEFAULTS = {
     ttlMs: 10_000,
     retryMs: 5_000,
     throttleMs: 30_000,
+    maxThrottleMs: 120_000,
+    burst: 3,
+    perMinute: 20,
     timeoutMs: 4_000,
     maxKeys: 200,
     userAgent: "dhruuv.me (+https://dhruuv.me)",
@@ -42,6 +50,18 @@ export function createFeed(options = {}) {
     const entries = new Map();
     let throttledUntil = 0;
     let seq = 0;
+    const budget = { tokens: opts.burst, at: null };
+
+    // Token bucket. `reserve` tokens must remain after spending one.
+    function spend(reserve) {
+        const t = now();
+        if (budget.at === null) budget.at = t;
+        budget.tokens = Math.min(opts.burst, budget.tokens + ((t - budget.at) * opts.perMinute) / 60_000);
+        budget.at = t;
+        if (budget.tokens - 1 < reserve) return false;
+        budget.tokens -= 1;
+        return true;
+    }
 
     function entryFor(key) {
         let entry = entries.get(key);
@@ -72,7 +92,8 @@ export function createFeed(options = {}) {
         if (res.status === 404) return { kind: "missing", value: null };
         if (res.status === 429) {
             const seconds = Number(res.headers.get("retry-after"));
-            throttledUntil = now() + (Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : opts.throttleMs);
+            const wait = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : opts.throttleMs;
+            throttledUntil = now() + Math.min(wait, opts.maxThrottleMs);
             throw new Error("dev.to throttled this IP (429)");
         }
         if (!res.ok) throw new Error(`dev.to answered ${res.status}`);
@@ -80,16 +101,19 @@ export function createFeed(options = {}) {
     }
 
     /**
-     * Reads `url`, memoised under `key` for `ttlMs`.
+     * Reads `url`, memoised under `key` for `ttlMs`. `priority: "high"` may
+     * spend the budget's last token; other reads leave it for the list.
      * @returns {Promise<FeedResult>}
      */
-    async function read(key, url) {
+    async function read(key, url, { priority = "normal" } = {}) {
         const entry = entryFor(key);
         const t = now();
         if (entry.result && t < entry.freshUntil) return view(entry.result, true);
         if (entry.inflight) return entry.inflight;
-        // Throttled, or paused after a failure: answer from memory, do not ask.
+        // Throttled, paused after a failure, or out of budget: answer from
+        // memory, do not ask.
         if (t < throttledUntil || t < entry.retryAt) return view(entry.result, false);
+        if (!spend(priority === "high" ? 0 : 1)) return view(entry.result, false);
 
         entry.inflight = (async () => {
             try {
@@ -113,9 +137,10 @@ export function createFeed(options = {}) {
 }
 
 /**
- * dev.to builds slugs as `<title words>-<1 to 4 base-26 digits>`. Paths that
- * cannot be a dev.to slug (scanners asking for /admin, /login, /wp-admin)
- * are answered as "not found" without spending an upstream request.
+ * dev.to builds slugs as `<title words>-<1 to 4 base-26 digits>`. Used when
+ * the article list cannot be read: a path that cannot be a dev.to slug
+ * (scanners asking for /admin, /login, /wp-admin) is "not found", while a
+ * slug-shaped one is "unavailable" because it may well exist.
  */
 export function looksLikeDevtoSlug(slug) {
     return typeof slug === "string" && slug.length <= 200 && /^[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-p]{1,4}$/.test(slug);

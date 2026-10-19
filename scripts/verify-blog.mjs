@@ -121,6 +121,8 @@ try {
     const before = JSON.stringify(state.hits.article);
     const scans = await Promise.all(["admin", "login", "wp-admin", "phpmyadmin", "xmlrpc"].map((p) => get(`${BLOG}/${p}`)));
     check("scanner paths get the not-found page without an upstream article read", scans.every(isNotFoundPage) && JSON.stringify(state.hits.article) === before, scans.map((s) => s.status).join(","));
+    const guesses = await Promise.all(Array.from({ length: 25 }, (_, i) => get(`${BLOG}/made-up-post-${(i + 10).toString(26)}`)));
+    check("25 slug-shaped guesses get the not-found page and cost dev.to nothing", guesses.every(isNotFoundPage) && JSON.stringify(state.hits.article) === before, `${Object.keys(state.hits.article).length} article keys hit`);
 
     // ---------- 9. a burst costs one upstream read ----------
     await sleep(TTL + 500);

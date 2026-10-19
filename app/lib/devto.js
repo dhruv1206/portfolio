@@ -27,7 +27,7 @@ const articleUrl = (slug) => `${api()}/articles/${personalData.devUsername}/${en
  */
 export async function getArticles() {
     await connection();
-    const res = await feed.read("list", listUrl());
+    const res = await feed.read("list", listUrl(), { priority: "high" });
     // An unknown username would 404; that is a misconfiguration, not "no articles".
     if (res.status !== "ok" || !Array.isArray(res.data)) return { status: "unavailable" };
     return res;
@@ -39,13 +39,19 @@ export async function getArticles() {
  */
 export async function getArticle(slug) {
     await connection();
-    // The list is one shared read, so checking it first means a path that is
-    // neither a known article nor shaped like a dev.to slug costs nothing
-    // upstream. A slug-shaped path that is not in the list yet (published in
-    // the last few seconds) still gets a direct read.
+    // Only articles the list knows are read upstream, so made-up paths
+    // (scanners, or a flood of slug-shaped guesses) cost dev.to nothing.
+    // A post published in the last few seconds joins the list on its next
+    // read, at most 10 seconds later.
     const list = await getArticles();
     const known = list.status === "ok" && list.data.some((a) => a.slug === slug);
-    if (!known && !looksLikeDevtoSlug(slug)) return { status: "missing" };
+    if (!known) {
+        // A live list is authoritative. A stale or missing one is not: the
+        // article may have been published since, unless the path cannot be
+        // a dev.to slug at all.
+        if (list.status === "ok" && list.live) return { status: "missing" };
+        return looksLikeDevtoSlug(slug) ? { status: "unavailable" } : { status: "missing" };
+    }
     const res = await feed.read(`article:${slug}`, articleUrl(slug));
     if (res.status === "ok" && (!res.data || typeof res.data !== "object")) return { status: "unavailable" };
     return res;
