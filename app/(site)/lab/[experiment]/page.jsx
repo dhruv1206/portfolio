@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getExperiment, getAllExperimentSlugs } from "../experiments/registry";
 import ExperimentHost from "../experiment-host";
+import { abs, ogImage, pageMetadata } from "@/app/lib/seo";
+import { JsonLd, PERSON_ID, breadcrumbs, webPage } from "@/app/lib/structured-data";
 
 export function generateStaticParams() {
     return getAllExperimentSlugs().map((experiment) => ({ experiment }));
@@ -11,15 +13,26 @@ export async function generateMetadata(props) {
     const params = await props.params;
     const exp = getExperiment(params.experiment);
     if (!exp) return { title: "Experiment not found" };
-    return { title: `${exp.title} · Lab`, description: exp.blurb, alternates: { canonical: `/lab/${exp.slug}` }, openGraph: { title: `${exp.title} · Lab`, description: exp.blurb, images: [{ url: `/api/og?title=${encodeURIComponent(exp.title)}&sub=${encodeURIComponent(exp.tagline)}&path=${encodeURIComponent("/lab/" + exp.slug)}&color=${encodeURIComponent(exp.accent)}`, width: 1200, height: 630 }] } };
+    return pageMetadata({
+        title: `${exp.title} · Lab`,
+        description: exp.blurb,
+        url: `/lab/${exp.slug}`,
+        image: ogImage({ title: exp.title, sub: exp.tagline, path: `/lab/${exp.slug}`, color: exp.accent }),
+    });
 }
 
 export default async function ExperimentPage(props) {
     const params = await props.params;
     const exp = getExperiment(params.experiment);
     if (!exp) notFound();
+    const url = `/lab/${exp.slug}`;
     return (
         <div className="rp">
+            <JsonLd graph={[
+                webPage({ url, name: exp.title, description: exp.blurb, mainEntity: { "@id": `${abs(url)}#work` } }),
+                { "@type": "CreativeWork", "@id": `${abs(url)}#work`, name: exp.title, alternativeHeadline: exp.tagline, description: exp.blurb, url: abs(url), author: { "@id": PERSON_ID }, keywords: exp.tags.join(", "), isAccessibleForFree: true },
+                breadcrumbs([["Home", "/"], ["Lab", "/lab"], [exp.title, url]]),
+            ]} />
             <Link href="/lab" className="rp-back">← All experiments</Link>
             <header className="rp-head" style={{ marginBottom: 28 }}>
                 <p className="rp-eyebrow"><b>/lab</b> <i>{exp.tagline}</i></p>

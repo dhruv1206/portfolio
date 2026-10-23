@@ -3,6 +3,19 @@ import styles from "@/app/components/home/home.module.scss";
 import SpineOverlay from "@/app/components/home/spine-overlay";
 import { ContactForm, CopyEmail, MachineRepl, Pipeline, StackLayers } from "@/app/components/home/widgets";
 import { ABOUT, ROLES } from "@/app/room/data";
+import { FEED_LINK, SITE_DESCRIPTION, SITE_TITLE, ogImage, pageMetadata } from "@/app/lib/seo";
+import { JsonLd, PERSON_ID, person, webPage, website } from "@/app/lib/structured-data";
+
+export const metadata = pageMetadata({
+    title: SITE_TITLE,
+    absoluteTitle: true,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    image: ogImage({ title: "Dhruv Agrawal", sub: "Backend engineer · MyRik · Bengaluru · the platforms I run serve 150,000 people a month", path: "/" }),
+    type: "profile",
+    openGraph: { firstName: "Dhruv", lastName: "Agrawal", username: "dhruv1206" },
+    alternates: FEED_LINK,
+});
 
 // The homepage: six stages that one particle system descends through.
 // Text is server-rendered; the canvas, rail and readout mount on the
@@ -30,12 +43,17 @@ export default function HomePage() {
     const lead = ROLES.slice(0, 3), rest = ROLES.slice(3);
     return (
         <main id="main-content" tabIndex={-1} className={cx(styles.page, "outline-none")} data-home>
+            <JsonLd graph={[
+                website(),
+                person({ knowsAbout: [...new Set(LAYERS.flatMap((l) => l.tools))] }),
+                webPage({ type: "ProfilePage", url: "/", name: SITE_TITLE, description: SITE_DESCRIPTION, mainEntity: { "@id": PERSON_ID } }),
+            ]} />
             <SpineOverlay />
             <div className={styles.content}>
                 <section className={cx(styles.stage, styles.s0)} id="s0" data-stage="0">
                     <div className={styles.copy}>
                         <p className={cx(styles.eyebrow, styles.heroEyebrow)}><b>Dhruv Agrawal</b> Software Engineer <i>MyRik · Bengaluru</i></p>
-                        <h1 className={styles.heroName}><span id="name-l1">Dhruv</span><span id="name-l2">Agrawal</span></h1>
+                        <h1 className={styles.heroName}><span id="name-l1">Dhruv</span> <span id="name-l2">Agrawal</span></h1>
                         <div className={styles.heroSub}>
                             <div>
                                 <p className={styles.thesis}>I build the systems <em>under the surface.</em></p>

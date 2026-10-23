@@ -6,18 +6,25 @@ import Link from "next/link";
 import TlDr from "./components/tl-dr";
 import RoleFitter from "./components/role-fitter";
 import { personalData } from "@/utils/data/personal-data";
+import { ogImage, pageMetadata } from "@/app/lib/seo";
+import { JsonLd, PERSON_ID, breadcrumbs, webPage } from "@/app/lib/structured-data";
 
-export const metadata = {
+const DESCRIPTION = "Defendable career numbers and a paste-a-JD role-fitter that says in 30 seconds whether I am the right hire, with a tailored PDF.";
+
+export const metadata = pageMetadata({
     title: "Recruiter mode",
-    description: "Defendable career numbers and a paste-a-JD role-fitter that says in 30 seconds whether I am the right hire, with a tailored PDF.",
-    alternates: { canonical: "/r" },
-    openGraph: { images: [{ url: "/api/og?title=Recruiter%20mode&sub=Defendable%20career%20numbers%20and%20a%20paste-a-JD%20fit%20score%20with%20a%20tailored%20PDF.%20Reads%20in%2060%20seconds.&path=/r", width: 1200, height: 630 }] },
-    robots: { index: true, follow: true },
-};
+    description: DESCRIPTION,
+    url: "/r",
+    image: ogImage({ title: "Recruiter mode", sub: "Defendable career numbers and a paste-a-JD fit score with a tailored PDF. Reads in 60 seconds.", path: "/r" }),
+});
 
 export default function RecruiterModePage() {
     return (
         <div className="rp">
+            <JsonLd graph={[
+                webPage({ url: "/r", name: "Recruiter mode", description: DESCRIPTION, about: { "@id": PERSON_ID } }),
+                breadcrumbs([["Home", "/"], ["Recruiter mode", "/r"]]),
+            ]} />
             <header className="rp-head">
                 <p className="rp-eyebrow"><b>/r</b> recruiter mode <i>reads in 60 seconds</i></p>
                 <h1 className="rp-h1">Dhruv <em>Agrawal.</em></h1>

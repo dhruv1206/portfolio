@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useReducedMotion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/app/hooks/use-prefers-reduced-motion";
 import AnimatedArchitecture from "./animated-architecture";
 import { eventBus } from "@/app/lib/event-bus";
 
@@ -18,7 +18,7 @@ import { eventBus } from "@/app/lib/event-bus";
 // each chapter's diagram inlined above its prose.
 
 export default function ScrollCinema({ chapters, diagramStates, accentColor = "#8b5cf6", demos = {} }) {
-    const reduced = useReducedMotion();
+    const reduced = usePrefersReducedMotion();
     const [activeIdx, setActiveIdx] = useState(0);
     const chapterEls = useRef(new Map());
     const [nodeCount, setNodeCount] = useState(0);
@@ -117,11 +117,14 @@ function CodeSnippet({ snippet }) {
     );
 }
 
+// One column that may shrink below its content's width (minmax(0, …)): a
+// code line longer than the screen then scrolls inside its <pre> instead of
+// widening the chapter past the screen, where the article clips it.
 function LinearChapterFlow({ chapters, diagramStates, accentColor, demos }) {
     return (
-        <ol className="list-none m-0 p-0" style={{ display: "grid", gap: 56 }}>
+        <ol className="list-none m-0 p-0" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 56 }}>
             {chapters.map((c) => (
-                <li key={c.id} style={{ display: "grid", gap: 18 }}>
+                <li key={c.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 18 }}>
                     <ChapterHeader chapter={c} accentColor={accentColor} />
                     <div className="cell"><div style={{ padding: 12 }}><AnimatedArchitecture states={diagramStates} activeStateId={c.diagramState} /></div></div>
                     <div style={{ maxWidth: "62ch" }}>{c.body.map((para, i) => <p key={i} className="rp-p" style={{ fontSize: 16, maxWidth: "none" }}>{inline(para)}</p>)}</div>

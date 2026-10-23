@@ -4,6 +4,8 @@ import sanitizeHtml from "sanitize-html";
 import { personalData } from "@/utils/data/personal-data";
 import { getArticle } from "@/app/lib/devto";
 import { blogUrl } from "@/app/lib/origins";
+import { BLOG_NAME, FEED_LINK, ORIGIN, abs, ogImage, pageMetadata, summary } from "@/app/lib/seo";
+import { JsonLd, PERSON_ID, breadcrumbs, personSummary } from "@/app/lib/structured-data";
 
 // One article, read live from dev.to (app/lib/devto.js keeps it within
 // 10 seconds). dev.to renders the body for us; it is sanitised again here
@@ -32,14 +34,26 @@ export async function generateMetadata(props) {
     // dev.to did not answer: the page says so, and must not be indexed saying it.
     if (res.status !== "ok") return { title: "Blog", alternates: { canonical: blogUrl(slug) }, robots: { index: false, follow: true } };
     const blog = res.data;
-    const description = isFiller(blog.description) ? undefined : blog.description;
-    return {
+    return pageMetadata({
         title: blog.title,
-        description,
-        alternates: { canonical: blogUrl(slug) },
-        openGraph: { url: blogUrl(slug), title: blog.title, description, type: "article", images: blog.cover_image ? [{ url: blog.cover_image }] : undefined },
-    };
+        description: describe(blog),
+        url: blogUrl(slug),
+        image: blog.cover_image || ogImage({ title: blog.title, sub: BLOG_NAME, path: `/blog/${slug}` }),
+        type: "article",
+        openGraph: { publishedTime: blog.published_at, modifiedTime: blog.edited_at || blog.published_at, authors: [`${ORIGIN}/`], tags: tagsOf(blog) },
+        alternates: FEED_LINK,
+    });
 }
+
+// dev.to's own description, or the opening of the article when that is the
+// "A post by …" filler.
+function describe(blog) {
+    if (!isFiller(blog.description)) return blog.description;
+    const text = sanitizeHtml(blog.body_html || "", { allowedTags: [], allowedAttributes: {} }).replace(/\s+/g, " ").trim();
+    return text ? summary(text) : `${blog.title}, on ${BLOG_NAME}.`;
+}
+
+const tagsOf = (blog) => (Array.isArray(blog.tags) ? blog.tags : typeof blog.tag_list === "string" ? blog.tag_list.split(",") : Array.isArray(blog.tag_list) ? blog.tag_list : []).map((t) => String(t).trim()).filter(Boolean);
 
 export default async function BlogDetails(props) {
     const { slug } = await props.params;
@@ -52,11 +66,34 @@ export default async function BlogDetails(props) {
     try { body = sanitizeHtml(blog.body_html || "", SANITIZE).trim(); } catch { body = ""; }
     const date = new Date(blog.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
+    const url = abs(blogUrl(slug));
     return (
         <article className="rp" style={{ maxWidth: 820 }}>
+            <JsonLd graph={[
+                {
+                    "@type": "BlogPosting",
+                    "@id": `${url}#article`,
+                    url,
+                    mainEntityOfPage: url,
+                    headline: blog.title,
+                    description: describe(blog),
+                    image: abs(blog.cover_image || ogImage({ title: blog.title, sub: BLOG_NAME, path: `/blog/${slug}` })),
+                    datePublished: blog.published_at,
+                    dateModified: blog.edited_at || blog.published_at,
+                    author: { "@id": PERSON_ID },
+                    publisher: { "@id": PERSON_ID },
+                    isPartOf: { "@id": `${abs(blogUrl())}#blog` },
+                    keywords: tagsOf(blog).join(", "),
+                    inLanguage: "en",
+                    // The same article where it was first published.
+                    sameAs: blog.url,
+                },
+                personSummary(),
+                breadcrumbs([["dhruuv.me", "/"], ["Blog", blogUrl()], [blog.title, blogUrl(slug)]]),
+            ]} />
             <Link href={blogUrl()} className="rp-back">← All articles</Link>
             <header className="rp-head" style={{ marginBottom: 36 }}>
-                <p className="rp-eyebrow"><b>{date}</b>{blog.reading_time_minutes ? <span>{blog.reading_time_minutes} min read</span> : null}<i>dev.to</i></p>
+                <p className="rp-eyebrow"><b><time dateTime={blog.published_at}>{date}</time></b>{blog.reading_time_minutes ? <span>{blog.reading_time_minutes} min read</span> : null}<i>dev.to</i></p>
                 <h1 className="rp-h1" style={{ fontSize: "clamp(32px, 4.6vw, 58px)" }}>{blog.title}</h1>
                 {!isFiller(blog.description) && <p className="rp-lede">{blog.description}</p>}
             </header>
@@ -79,7 +116,7 @@ export default async function BlogDetails(props) {
 // The article may well exist, so this is not a 404.
 function Unavailable({ slug }) {
     return (
-        <article className="rp" style={{ maxWidth: 820 }}>
+        <article className="rp" data-http-status="503" style={{ maxWidth: 820 }}>
             <Link href={blogUrl()} className="rp-back">← All articles</Link>
             <div className="cell">
                 <div className="cell-h"><b>dev.to is not answering</b></div>

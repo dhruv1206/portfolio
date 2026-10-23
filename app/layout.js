@@ -1,4 +1,3 @@
-import { GoogleTagManager } from "@next/third-parties/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -6,13 +5,12 @@ import "./css/card.scss";
 import "./css/globals.scss";
 import "./css/reading.scss";
 import ClientProviders from "./components/client-providers";
-import { personalData } from "@/utils/data/personal-data";
+import { NAME, ORIGIN, SITE_DESCRIPTION as DESCRIPTION, SITE_TITLE as TITLE } from "./lib/seo";
 import { archivo, geist, geistMono } from "./fonts";
 
-const TITLE = "Dhruv Agrawal · Backend Engineer";
-const DESCRIPTION =
-    "Backend engineer at MyRik. The platforms I run serve 150,000 people a month; their latency, cost and uptime are my job. Every claim on this site is backed by something you can run: a REPL, a real WebRTC room, a live model of the production system.";
-
+// Defaults only: every page declares its own canonical, Open Graph and X
+// card through app/lib/seo.js. No canonical here, or a page that forgot
+// its own would claim to be the homepage.
 export const metadata = {
     title: { default: TITLE, template: "%s · Dhruv Agrawal" },
     description: DESCRIPTION,
@@ -29,14 +27,12 @@ export const metadata = {
         "Redis",
         "Portfolio",
     ],
-    authors: [{ name: personalData.name }],
-    creator: personalData.name,
-    metadataBase: new URL("https://dhruuv.me"),
-    alternates: { canonical: "/" },
+    authors: [{ name: NAME, url: ORIGIN }],
+    creator: NAME,
+    metadataBase: new URL(ORIGIN),
     openGraph: {
         type: "website",
         locale: "en_US",
-        url: "https://dhruuv.me",
         title: TITLE,
         description: DESCRIPTION,
         siteName: "dhruuv.me",
@@ -49,17 +45,10 @@ export const metadata = {
         creator: "@dhruv_1206",
         images: ["/api/og?title=Dhruv%20Agrawal&sub=Backend%20engineer%20%C2%B7%20MyRik%20%C2%B7%20Bengaluru%20%C2%B7%20the%20platforms%20I%20run%20serve%20150%2C000%20people%20a%20month&path=/"],
     },
-    robots: {
-        index: true,
-        follow: true,
-        googleBot: {
-            index: true,
-            follow: true,
-            "max-video-preview": -1,
-            "max-image-preview": "large",
-            "max-snippet": -1,
-        },
-    },
+    // Indexing is the default and is not restated: an explicit
+    // "index, follow" sat next to the noindex Next adds to 404 pages.
+    // These let search and AI answers quote and preview pages in full.
+    robots: { "max-snippet": -1, "max-image-preview": "large", "max-video-preview": -1 },
 };
 
 export const viewport = {
@@ -94,7 +83,6 @@ export default function RootLayout({ children }) {
                     />
                     {children}
                 </ClientProviders>
-                <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM} />
                 {/* The Speed Insights script is served only by Vercel; anywhere
                     else (next start, CI) it is a 404 in the console. */}
                 {process.env.VERCEL ? <SpeedInsights /> : null}

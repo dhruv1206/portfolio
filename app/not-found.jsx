@@ -15,7 +15,7 @@ const ROUTES = [
 
 export default function NotFound() {
     return (
-        <main id="main-content" className="rp" style={{ minHeight: "100vh", padding: "calc(56px + 10vh) clamp(16px, 4vw, 56px) 80px" }}>
+        <main id="main-content" className="rp" data-http-status="404" style={{ minHeight: "100vh", padding: "calc(56px + 10vh) clamp(16px, 4vw, 56px) 80px" }}>
             <div style={{ maxWidth: 760, margin: "0 auto" }}>
                 <header className="rp-head">
                     <p className="rp-eyebrow"><b>404</b> ENOENT <i>no such file or route</i></p>
