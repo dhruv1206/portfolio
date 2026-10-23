@@ -9,6 +9,9 @@ import { NAME, ORIGIN, SITE_NAME, abs } from "./seo";
 
 export const PERSON_ID = `${ORIGIN}/#person`;
 export const WEBSITE_ID = `${ORIGIN}/#website`;
+// Dhruv's photo: the site itself shows none, but "Dhruv Agrawal" is a
+// common name and a face helps search engines and assistants tell which one.
+const PHOTO = `${ORIGIN}/profile.jpeg`;
 
 /** Dhruv, as the homepage and /r describe him. `knowsAbout` comes from the caller's visible stack. */
 export function person({ knowsAbout } = {}) {
@@ -17,6 +20,7 @@ export function person({ knowsAbout } = {}) {
         "@id": PERSON_ID,
         name: NAME,
         url: `${ORIGIN}/`,
+        image: PHOTO,
         jobTitle: "Backend Engineer",
         description: "Backend engineer at MyRik in Bengaluru. The platforms he runs serve 150,000 people a month.",
         worksFor: { "@type": "Organization", name: "MyRik" },
@@ -30,7 +34,7 @@ export function person({ knowsAbout } = {}) {
 
 /** Enough of the person for a page on another host (the blog) to stand alone. */
 export function personSummary() {
-    return { "@type": "Person", "@id": PERSON_ID, name: NAME, url: `${ORIGIN}/`, sameAs: [personalData.github, personalData.linkedIn, `https://dev.to/${personalData.devUsername}`] };
+    return { "@type": "Person", "@id": PERSON_ID, name: NAME, url: `${ORIGIN}/`, image: PHOTO, sameAs: [personalData.github, personalData.linkedIn, `https://dev.to/${personalData.devUsername}`] };
 }
 
 export function website() {
