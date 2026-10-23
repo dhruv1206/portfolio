@@ -1,20 +1,28 @@
 import Link from "next/link";
 import RoomLoader from "@/app/components/room/room-loader";
 import { ABOUT, ROLES, SCENARIOS } from "@/app/room/data";
+import { ogImage, pageMetadata } from "@/app/lib/seo";
+import { JsonLd, PERSON_ID, breadcrumbs, webPage } from "@/app/lib/structured-data";
+
+const DESCRIPTION = "A live, breakable model of the production systems I run. Kill a worker, partition the cache, watch it heal, then replay the incidents I actually fixed.";
 
 // The control room is a client-only application (canvas, simulation,
 // Web Audio), so the server renders a crawlable summary plus the boot
 // title, and hands the viewport to the room once JavaScript loads.
-export const metadata = {
+export const metadata = pageMetadata({
     title: "Control room",
-    description: "A live, breakable model of the production systems I run. Kill a worker, partition the cache, watch it heal, then replay the incidents I actually fixed.",
-    alternates: { canonical: "/room" },
-    openGraph: { images: [{ url: "/api/og?title=The%20control%20room&sub=A%20live%2C%20breakable%20model%20of%20the%20systems%20I%20run%3A%2024%20services%2C%20real%20queues%2C%20real%20timeouts%2C%20seven%20replayable%20incidents.&path=/room", width: 1200, height: 630 }] },
-};
+    description: DESCRIPTION,
+    url: "/room",
+    image: ogImage({ title: "The control room", sub: "A live, breakable model of the systems I run: 24 services, real queues, real timeouts, seven replayable incidents.", path: "/room" }),
+});
 
 export default function RoomPage() {
     return (
         <main id="main-content" tabIndex={-1} className="outline-none">
+            <JsonLd graph={[
+                webPage({ url: "/room", name: "Control room", description: DESCRIPTION, about: { "@id": PERSON_ID } }),
+                breadcrumbs([["Home", "/"], ["Control room", "/room"]]),
+            ]} />
             <section className="sr-only" aria-label="Summary">
                 <h1>{ABOUT.name}</h1>
                 <p>{ABOUT.role}</p>

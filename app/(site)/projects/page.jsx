@@ -3,13 +3,17 @@
 
 import Link from "next/link";
 import { projectsData } from "@/utils/data/projects-data";
+import { abs, ogImage, pageMetadata } from "@/app/lib/seo";
+import { JsonLd, breadcrumbs, webPage } from "@/app/lib/structured-data";
 
-export const metadata = {
+const DESCRIPTION = "Three case studies, each with a working demo: DStarDB's REPL in a Web Worker, a real WebRTC room, and the press-release pipeline running in the browser.";
+
+export const metadata = pageMetadata({
     title: "Projects",
-    description: "Three case studies, each with a working demo: DStarDB's REPL in a Web Worker, a real WebRTC room, and the press-release pipeline running in the browser.",
-    alternates: { canonical: "/projects" },
-    openGraph: { images: [{ url: "/api/og?title=Machines%20you%20can%20run&sub=Three%20case%20studies%2C%20each%20with%20a%20working%20demo%3A%20a%20REPL%2C%20a%20real%20WebRTC%20room%2C%20a%20pipeline%20in%20the%20tab.&path=/projects", width: 1200, height: 630 }] },
-};
+    description: DESCRIPTION,
+    url: "/projects",
+    image: ogImage({ title: "Machines you can run", sub: "Three case studies, each with a working demo: a REPL, a real WebRTC room, a pipeline in the tab.", path: "/projects" }),
+});
 
 const DEMO = {
     dstardb: ["Live REPL", "the C++ store compiled for the browser, timed in microseconds"],
@@ -36,6 +40,10 @@ export default function ProjectsPage() {
     const earlier = projectsData.filter((p) => !DEMO[p.slug]);
     return (
         <div className="rp">
+            <JsonLd graph={[
+                webPage({ type: "CollectionPage", url: "/projects", name: "Projects", description: DESCRIPTION, mainEntity: { "@type": "ItemList", itemListElement: projectsData.map((p, i) => ({ "@type": "ListItem", position: i + 1, name: p.name, url: abs(`/projects/${p.slug}`) })) } }),
+                breadcrumbs([["Home", "/"], ["Projects", "/projects"]]),
+            ]} />
             <header className="rp-head">
                 <p className="rp-eyebrow"><b>Projects</b> {projectsData.length} case studies <i>{featured.length} with live demos</i></p>
                 <h1 className="rp-h1">Machines you <em>can run.</em></h1>

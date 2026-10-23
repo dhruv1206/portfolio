@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { getProjectBySlug, getAllProjectSlugs } from "@/utils/data/projects-data";
+import { abs, ogImage, pageMetadata, summary } from "@/app/lib/seo";
+import { JsonLd, PERSON_ID, breadcrumbs, webPage } from "@/app/lib/structured-data";
 import CaseStudyPage from "./case-study-page";
 
 // Generate static params for all project slugs
@@ -8,38 +10,17 @@ export async function generateStaticParams() {
     return slugs.map((slug) => ({ slug }));
 }
 
-// Generate metadata for SEO
 export async function generateMetadata(props) {
     const params = await props.params;
     const project = getProjectBySlug(params.slug);
-
-    if (!project) {
-        return {
-            title: "Project Not Found",
-        };
-    }
-
-    return {
+    if (!project) return { title: "Project not found" };
+    return pageMetadata({
         title: project.name,
-        alternates: { canonical: `/projects/${project.slug}` },
-        description: project.description.substring(0, 160),
-        openGraph: {
-            title: project.name,
-            description: project.description.substring(0, 160),
-            images: [
-                {
-                    url: `/api/og?title=${encodeURIComponent(project.name)}&sub=${encodeURIComponent(project.description.split(". ")[0] + ".")}&path=${encodeURIComponent("/projects/" + project.slug)}&color=${encodeURIComponent(project.accentColor || "#22d3ee")}`,
-                    width: 1200,
-                    height: 630,
-                },
-            ],
-        },
-        twitter: {
-            card: "summary_large_image",
-            title: project.name,
-            description: project.description.substring(0, 160),
-        },
-    };
+        description: summary(project.description),
+        url: `/projects/${project.slug}`,
+        image: ogImage({ title: project.name, sub: `${project.description.split(". ")[0]}.`, path: `/projects/${project.slug}`, color: project.accentColor || "#22d3ee" }),
+        type: "article",
+    });
 }
 
 export default async function ProjectPage(props) {
@@ -50,5 +31,26 @@ export default async function ProjectPage(props) {
         notFound();
     }
 
-    return <CaseStudyPage project={project} />;
+    const url = `/projects/${project.slug}`;
+    const source = project.code || (project.url && project.url.includes("github") ? project.url : "");
+    return (
+        <>
+            <JsonLd graph={[
+                webPage({ url, name: project.name, description: project.description, mainEntity: { "@id": `${abs(url)}#work` } }),
+                {
+                    // Source on GitHub makes it code; the mobile apps without a public repo are works.
+                    "@type": source ? "SoftwareSourceCode" : "CreativeWork",
+                    "@id": `${abs(url)}#work`,
+                    name: project.name,
+                    description: project.description,
+                    url: abs(url),
+                    author: { "@id": PERSON_ID },
+                    keywords: project.tools.join(", "),
+                    ...(source ? { codeRepository: source } : {}),
+                },
+                breadcrumbs([["Home", "/"], ["Projects", "/projects"], [project.name, url]]),
+            ]} />
+            <CaseStudyPage project={project} />
+        </>
+    );
 }

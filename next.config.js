@@ -76,6 +76,9 @@ function blogRedirects(blog, site) {
 function blogRewrites(blog) {
     const onBlog = [{ type: "host", value: escapeHost(new URL(blog).hostname) }];
     return [
+        // The blog host's own robots.txt, sitemap, feed and llms.txt
+        // (app/(blog)/blog/), not the main site's.
+        ...["/robots.txt", "/sitemap.xml", "/feed.xml", "/llms.txt"].map((source) => ({ source, has: onBlog, destination: `/blog${source}` })),
         { source: "/:slug([A-Za-z0-9][A-Za-z0-9_-]*)", has: onBlog, destination: "/blog/:slug" },
         { source: "/", has: onBlog, destination: "/blog" },
     ];
