@@ -1,4 +1,3 @@
-import { GoogleTagManager } from "@next/third-parties/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -84,7 +83,6 @@ export default function RootLayout({ children }) {
                     />
                     {children}
                 </ClientProviders>
-                <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM} />
                 {/* The Speed Insights script is served only by Vercel; anywhere
                     else (next start, CI) it is a 404 in the console. */}
                 {process.env.VERCEL ? <SpeedInsights /> : null}
