@@ -8,7 +8,14 @@
 // - A fresh cache-buster on every upstream call, plus
 //   `Accept-Encoding: identity`: dev.to's CDN keeps copies of a fixed URL
 //   for days (separately per encoding), so every read uses a URL the CDN
-//   has never seen.
+//   has never seen. The CDN keys its copies only on query parameters
+//   dev.to knows: an unknown `v=` buster was dropped from the key, and the
+//   blog served a 34-hour-old list (October 2026). So the buster is
+//   `per_page`, set to a new number above 1000 each time, which dev.to
+//   clamps to 1000 for lists and ignores for single articles.
+// - The CDN's Age header is checked. A copy it has held for over a minute
+//   means the buster has stopped working: the copy is still used, but not
+//   as live, and the server log says so.
 // - A short per-key window and shared in-flight requests: dev.to allows
 //   3 GET/s and 30 GET/min per IP, an API key does not lift that, and
 //   Vercel functions share egress IPs with other tenants. One instance
@@ -33,6 +40,7 @@ const DEFAULTS = {
     burst: 3,
     perMinute: 20,
     timeoutMs: 4_000,
+    staleAgeS: 60,
     maxKeys: 200,
     userAgent: "dhruuv.me (+https://dhruuv.me)",
 };
@@ -45,11 +53,13 @@ export function createFeed(options = {}) {
     const opts = { ...DEFAULTS, ...options };
     const fetchImpl = options.fetch || ((...args) => fetch(...args));
     const now = options.now || (() => Date.now());
+    const warn = options.warn || ((message) => console.warn(message));
 
-    // key -> { result: { kind, value, at } | null, freshUntil, retryAt, inflight: Promise | null }
+    // key -> { result: { kind, value, stale, at } | null, freshUntil, retryAt, inflight: Promise | null }
     const entries = new Map();
     let throttledUntil = 0;
     let seq = 0;
+    let warnedAt = -Infinity;
     const budget = { tokens: opts.burst, at: null };
 
     // Token bucket. `reserve` tokens must remain after spending one.
@@ -78,18 +88,28 @@ export function createFeed(options = {}) {
     function view(result, live) {
         if (!result) return { status: "unavailable" };
         if (result.kind === "missing") return { status: "missing" };
-        return { status: "ok", data: result.value, live };
+        return { status: "ok", data: result.value, live: live && !result.stale };
     }
 
     async function request(url) {
-        const sep = url.includes("?") ? "&" : "?";
-        const buster = `${now().toString(36)}${(seq++).toString(36)}`;
-        const res = await fetchImpl(`${url}${sep}v=${buster}`, {
+        const target = new URL(url);
+        target.searchParams.set("per_page", String(1000 + now() * 1000 + (seq++ % 1000)));
+        const res = await fetchImpl(target.href, {
             headers: { Accept: "application/json", "Accept-Encoding": "identity", "User-Agent": opts.userAgent },
             cache: "no-store",
             signal: AbortSignal.timeout(opts.timeoutMs),
         });
-        if (res.status === 404) return { kind: "missing", value: null };
+        const age = Number(res.headers.get("age")) || 0;
+        const stale = age > opts.staleAgeS;
+        if (stale && now() - warnedAt > 60_000) {
+            warnedAt = now();
+            warn(`[blog] dev.to's CDN sent a copy it has held for ${age} s (${target.pathname}): the cache-buster has stopped working`);
+        }
+        if (res.status === 404) {
+            // A 404 the CDN has held may be older than the article.
+            if (stale) throw new Error("dev.to's CDN sent an old 404");
+            return { kind: "missing", value: null };
+        }
         if (res.status === 429) {
             const seconds = Number(res.headers.get("retry-after"));
             const wait = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : opts.throttleMs;
@@ -97,7 +117,7 @@ export function createFeed(options = {}) {
             throw new Error("dev.to throttled this IP (429)");
         }
         if (!res.ok) throw new Error(`dev.to answered ${res.status}`);
-        return { kind: "ok", value: await res.json() };
+        return { kind: "ok", value: await res.json(), stale };
     }
 
     /**

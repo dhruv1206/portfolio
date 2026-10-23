@@ -19,8 +19,9 @@ function harness(responses) {
         return new Response(JSON.stringify(body), { status, headers });
     };
     // The upstream budget is switched off here; it has its own tests below.
-    const feed = createFeed({ fetch, now: () => clock, ttlMs: 10_000, retryMs: 5_000, throttleMs: 30_000, burst: 1e9, perMinute: 1e12 });
-    return { feed, calls, tick: (ms) => { clock += ms; } };
+    const warnings = [];
+    const feed = createFeed({ fetch, now: () => clock, ttlMs: 10_000, retryMs: 5_000, throttleMs: 30_000, burst: 1e9, perMinute: 1e12, warn: (m) => warnings.push(m) });
+    return { feed, calls, warnings, tick: (ms) => { clock += ms; } };
 }
 const LIST = "https://dev.to/api/articles?username=x&per_page=1000";
 
@@ -36,16 +37,45 @@ test("a read within the window is served from memory; after it, dev.to is asked 
     assert.equal(h.calls.length, 2);
 });
 
-test("every upstream call carries a never-seen cache-buster and asks for the uncompressed variant", async () => {
+test("every upstream call carries a never-seen per_page above 1000 and asks for the uncompressed variant", async () => {
     const h = harness([{ body: [] }]);
     await h.feed.read("list", LIST);
+    await h.feed.read("article:a-1", "https://dev.to/api/articles/x/a-1");
     h.tick(10_001);
     await h.feed.read("list", LIST);
-    const [a, b] = h.calls.map((c) => new URL(c.url).searchParams.get("v"));
-    assert.ok(a && b && a !== b, `busters ${a} and ${b} must differ`);
-    assert.ok(h.calls[0].url.startsWith(LIST + "&v="), "the buster is appended to the existing query");
+    const pages = h.calls.map((c) => new URL(c.url).searchParams.getAll("per_page"));
+    assert.ok(pages.every((p) => p.length === 1), "per_page is replaced, never duplicated");
+    const values = pages.map(([p]) => Number(p));
+    assert.ok(values.every((n) => Number.isSafeInteger(n) && n > 1000), `busters ${values} must be whole numbers above 1000`);
+    assert.equal(new Set(values).size, values.length, `busters ${values} must differ`);
+    assert.ok(h.calls.every((c) => !new URL(c.url).searchParams.has("v")), "no parameter dev.to's CDN leaves out of its key");
+    assert.equal(new URL(h.calls[0].url).searchParams.get("username"), "x", "the rest of the query is kept");
     assert.equal(h.calls[0].init.headers["Accept-Encoding"], "identity");
     assert.equal(h.calls[0].init.cache, "no-store");
+});
+
+test("a copy dev.to's CDN has held for over a minute is used, but not as live, and is logged once a minute", async () => {
+    const h = harness([{ body: [{ slug: "a-1" }], headers: { age: "123434" } }]);
+    assert.deepEqual(await h.feed.read("list", LIST), { status: "ok", data: [{ slug: "a-1" }], live: false });
+    assert.equal((await h.feed.read("list", LIST)).live, false, "still not live when served from memory");
+    h.tick(10_001);
+    await h.feed.read("list", LIST);
+    assert.equal(h.warnings.length, 1, "one warning, not one per read");
+    assert.match(h.warnings[0], /123434 s/);
+    h.tick(60_001);
+    await h.feed.read("list", LIST);
+    assert.equal(h.warnings.length, 2);
+});
+
+test("a copy the CDN fetched seconds ago is live", async () => {
+    const h = harness([{ body: [], headers: { age: "3" } }]);
+    assert.equal((await h.feed.read("list", LIST)).live, true);
+    assert.equal(h.warnings.length, 0);
+});
+
+test("a 404 the CDN has held is not trusted as 'missing'", async () => {
+    const h = harness([{ status: 404, body: {}, headers: { age: "90000" } }]);
+    assert.deepEqual(await h.feed.read("article:a-1", "https://dev.to/api/articles/x/a-1"), { status: "unavailable" });
 });
 
 test("concurrent reads of one key share a single upstream request", async () => {
