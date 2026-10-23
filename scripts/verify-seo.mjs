@@ -136,7 +136,17 @@ try {
     check("the blog sitemap stays a 200 from the last good list while dev.to is down", r.status === 200 && r.body.includes("merge-queues-explained-ab12"), `status ${r.status}`);
     state.mode = "ok";
 
-    // ---------- 4. case studies and the 404 page ----------
+    // ---------- 4. the proxy fetches only this site ----------
+    let attackerHits = 0;
+    const attacker = http.createServer((req, res) => { attackerHits++; res.setHeader("content-type", "text/html"); res.end("<html><head><title>spoofed</title></head><body>not this site</body></html>"); });
+    await new Promise((resolve) => attacker.listen(4056, "127.0.0.1", resolve));
+    const spoofed = await Promise.all([{ "x-forwarded-host": "127.0.0.1:4056" }, { host: "127.0.0.1:4056" }, { "x-forwarded-host": "127.0.0.1:4056", "x-forwarded-proto": "http" }].map((h) => fetch(`${SITE}/projects`, { redirect: "manual", headers: { "user-agent": UA.curl, ...h } }).then((x) => x.text())));
+    attacker.close();
+    check("a crawler request cannot point the proxy at another host (X-Forwarded-Host, Host, protocol)", attackerHits === 0 && spoofed.every((html) => !html.includes("spoofed")), `${attackerHits} requests reached the other host`);
+    r = await fetch(`${BLOG}/`, { headers: { "user-agent": UA.gptbot } });
+    check("a crawler's whole page is never cached for anyone else (private, no-store; Vary: User-Agent)", r.headers.get("cache-control") === "private, no-store" && /User-Agent/i.test(r.headers.get("vary") || ""), `${r.headers.get("cache-control")} / ${r.headers.get("vary")}`);
+
+    // ---------- 5. case studies and the 404 page ----------
     r = await get(`${SITE}/projects/dstardb`, "browser");
     check("a case study's chapters are in the server's HTML", visible(r.body).includes("Why a multi-core in-memory store, when Redis exists?") && !visible(r.body).includes("loading the chapters"));
     r = await get(`${SITE}/definitely-missing`, "gptbot");

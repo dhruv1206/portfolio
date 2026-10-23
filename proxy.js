@@ -19,41 +19,55 @@ import { inlineStreamedHtml } from "./app/lib/inline-streamed-html.mjs";
 // passes through here, and Googlebot, which renders JavaScript, gets the
 // page everyone gets. Keep the list in step with htmlLimitedBots in
 // next.config.js, which makes Vercel skip the prerendered shell for them.
+//
+// The proxy only ever fetches this site: the origin comes from the list
+// below, matched against the request's Host, never from a header the
+// client can choose (X-Forwarded-Host, the protocol). Any other host is
+// left to render as usual.
 
 const INNER = "x-rendered-whole"; // marks the proxy's own fetch, which the matcher lets through
+const OWN_ORIGINS = [
+    process.env.SITE_ORIGIN, // set with BLOG_ORIGIN by next.config.js when the blog has its own host
+    process.env.BLOG_ORIGIN,
+    ...[process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_URL].filter(Boolean).map((host) => `https://${host}`),
+].filter(Boolean).map((origin) => new URL(origin));
+// Request headers worth passing on: content negotiation, plus what a
+// protected preview deployment needs to let the proxy's own fetch in.
+const FORWARD = ["accept", "accept-language", "cookie", "x-vercel-protection-bypass"];
+const HOP_BY_HOP = ["connection", "keep-alive", "transfer-encoding", "upgrade", "te", "trailer", "proxy-authenticate", "proxy-authorization", "content-length", "content-encoding", "set-cookie"];
 
 export async function proxy(request) {
-    const headers = new Headers(request.headers);
-    headers.set("user-agent", `${request.headers.get("user-agent") || ""} (rendered whole; compatible; Bingbot)`);
-    if (request.method === "GET" && !request.headers.has(INNER)) {
+    const userAgent = `${request.headers.get("user-agent") || ""} (rendered whole; compatible; Bingbot)`;
+    const own = OWN_ORIGINS.find((origin) => origin.host === request.headers.get("host"));
+    if (request.method === "GET" && own && !request.headers.has(INNER)) {
         try {
-            const inner = new Headers(headers);
-            inner.set(INNER, "1");
-            // The host the client asked for: request.url can carry the
-            // server's own address instead, and fetch() cannot set Host, so
-            // a page on blog.dhruuv.me would be fetched from the main site.
-            const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.host;
-            const proto = (request.headers.get("x-forwarded-proto") || request.nextUrl.protocol).replace(/:$/, "");
-            const url = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, `${proto}://${host}`);
-            const res = await fetch(url, { headers: inner, redirect: "manual", signal: AbortSignal.timeout(8_000) });
-            if (!(res.headers.get("content-type") || "").includes("text/html")) return res;
-            const { html } = inlineStreamedHtml(await res.text());
-            const out = new Headers(res.headers);
-            for (const h of ["content-length", "content-encoding", "transfer-encoding"]) out.delete(h);
-            // A streamed page cannot change its status once its first bytes
-            // are out, so a page that should not be a 200 says so in its
-            // markup: Next marks a notFound() mid-stream with the status it
-            // meant (NEXT_HTTP_ERROR_FALLBACK;404), and the blog marks a
-            // dev.to outage 503. With the whole page here, the crawler can
-            // be told.
-            const declared = /data-dgst="NEXT_HTTP_ERROR_FALLBACK;(\d{3})"/.exec(html) || /<(?:main|article|div)\b[^>]*\sdata-http-status="(\d{3})"/.exec(html);
-            const status = res.status === 200 && declared ? Number(declared[1]) : res.status;
-            if (status === 503) out.set("retry-after", "120");
-            return new Response(html, { status, headers: out });
+            const inner = new Headers({ "user-agent": userAgent, [INNER]: "1" });
+            for (const name of FORWARD) if (request.headers.has(name)) inner.set(name, request.headers.get(name));
+            const res = await fetch(new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, own.origin), { headers: inner, redirect: "manual", signal: AbortSignal.timeout(8_000) });
+            if (res.ok && (res.headers.get("content-type") || "").includes("text/html")) {
+                const { html } = inlineStreamedHtml(await res.text());
+                const out = new Headers(res.headers);
+                for (const name of HOP_BY_HOP) out.delete(name);
+                // This answer is for crawlers only; no shared cache may hand it to a browser.
+                out.set("vary", "User-Agent");
+                out.set("cache-control", "private, no-store");
+                // A streamed page cannot change its status once its first bytes
+                // are out, so a page that should not be a 200 says so in its
+                // markup: Next marks a notFound() mid-stream with the status it
+                // meant (NEXT_HTTP_ERROR_FALLBACK;404), and the blog marks a
+                // dev.to outage 503. With the whole page here, the crawler can
+                // be told.
+                const declared = /data-dgst="NEXT_HTTP_ERROR_FALLBACK;(\d{3})"/.exec(html) || /<(?:main|article|div)\b[^>]*\sdata-http-status="(\d{3})"/.exec(html);
+                const status = declared ? Number(declared[1]) : res.status;
+                if (status === 503) out.set("retry-after", "120");
+                return new Response(html, { status, headers: out });
+            }
         } catch {
             // fall through: the page as Next renders it for this bot
         }
     }
+    const headers = new Headers(request.headers);
+    headers.set("user-agent", userAgent);
     return NextResponse.next({ request: { headers } });
 }
 
