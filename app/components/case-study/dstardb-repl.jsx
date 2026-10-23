@@ -120,7 +120,10 @@ export default function DStarDBREPL() {
     }, []);
 
     useEffect(() => {
-        // Auto-scroll to bottom when new entries land.
+        // Auto-scroll to bottom when new entries land. The welcome on its
+        // own (on mount, and after CLEAR) fits the box; reading scrollHeight
+        // for it forced a layout of the whole page while it was loading.
+        if (entries.length < 2) return;
         const el = scrollRef.current;
         if (el) el.scrollTop = el.scrollHeight;
     }, [entries]);
