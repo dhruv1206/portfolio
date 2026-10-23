@@ -4,6 +4,14 @@ import { abs, ogImage, pageMetadata, summary } from "@/app/lib/seo";
 import { JsonLd, PERSON_ID, breadcrumbs, webPage } from "@/app/lib/structured-data";
 import CaseStudyPage from "./case-study-page";
 
+// The scrollytelling chapters, for the projects that have them. Loaded on
+// the server so their prose is part of the page's HTML.
+const CHAPTERS = {
+    dstardb: () => import("@/utils/data/case-studies/dstardb"),
+    "realtime-collaboration": () => import("@/utils/data/case-studies/realtime-collaboration"),
+    "ai-press-release-generator": () => import("@/utils/data/case-studies/ai-press-release-generator"),
+};
+
 // Generate static params for all project slugs
 export async function generateStaticParams() {
     const slugs = getAllProjectSlugs();
@@ -32,6 +40,7 @@ export default async function ProjectPage(props) {
     }
 
     const url = `/projects/${project.slug}`;
+    const chapters = CHAPTERS[project.slug] ? await CHAPTERS[project.slug]() : null;
     const source = project.code || (project.url && project.url.includes("github") ? project.url : "");
     return (
         <>
@@ -50,7 +59,7 @@ export default async function ProjectPage(props) {
                 },
                 breadcrumbs([["Home", "/"], ["Projects", "/projects"], [project.name, url]]),
             ]} />
-            <CaseStudyPage project={project} />
+            <CaseStudyPage project={project} chapterData={chapters && { chapters: chapters.chapters, diagramStates: chapters.diagramStates }} />
         </>
     );
 }

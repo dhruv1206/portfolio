@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import ScrollCinema from "@/app/components/case-study/scroll-cinema";
 import { VideoEmbed } from "@/app/components/case-study/case-study-components";
 import { projectsData } from "@/utils/data/projects-data";
 
@@ -12,7 +12,6 @@ import { projectsData } from "@/utils/data/projects-data";
 const DStarDBREPL = dynamic(() => import("@/app/components/case-study/dstardb-repl"), { ssr: false });
 const WebRTCDemo = dynamic(() => import("@/app/components/case-study/webrtc-demo"), { ssr: false });
 const PressReleasePipeline = dynamic(() => import("@/app/components/case-study/press-release-pipeline"), { ssr: false });
-const ScrollCinema = dynamic(() => import("@/app/components/case-study/scroll-cinema"), { ssr: false, loading: () => <div className="spin-wrap" style={{ minHeight: 240 }}><span className="spin" />loading the chapters</div> });
 
 const LIVE_DEMOS = {
     dstardb: { title: "Try DStarDB", subtitle: "The real Redis-style command set, running entirely in this tab in a Web Worker. Every reply is timed in microseconds.", Component: DStarDBREPL },
@@ -20,31 +19,11 @@ const LIVE_DEMOS = {
     "ai-press-release-generator": { title: "Run the press-release pipeline", subtitle: "The shape of the production Flask service: ingest → summarise → translate across 10 Indian languages → text-to-speech → compose a slide video with zoom, blur and fade. Translation goes through MyMemory here (Google Translate in production), speech uses Web Speech (gTTS in production), and the MP4 timeline is painted live on Canvas (MoviePy in production).", Component: PressReleasePipeline },
 };
 
-// Slug → dynamic loader for the chapter data. Each module exports
-// `{ chapters, diagramStates }`; the import keeps the prose out of the
-// initial route bundle.
-const CHAPTER_LOADERS = {
-    dstardb: () => import("@/utils/data/case-studies/dstardb"),
-    "realtime-collaboration": () => import("@/utils/data/case-studies/realtime-collaboration"),
-    "ai-press-release-generator": () => import("@/utils/data/case-studies/ai-press-release-generator"),
-};
-
-function useChapterData(slug) {
-    const [data, setData] = useState(null);
-    useEffect(() => {
-        const loader = CHAPTER_LOADERS[slug];
-        if (!loader) return undefined;
-        let cancelled = false;
-        loader().then((mod) => { if (!cancelled) setData({ slug, chapters: mod.chapters, diagramStates: mod.diagramStates }); });
-        return () => { cancelled = true; };
-    }, [slug]);
-    return data && data.slug === slug ? data : null;
-}
-
-export default function CaseStudyPage({ project }) {
-    const chapterData = useChapterData(project.slug);
+// `chapterData` ({ chapters, diagramStates }) comes from the server page,
+// so the case study's prose is in the HTML: readable without JavaScript
+// and on screen without a loading state.
+export default function CaseStudyPage({ project, chapterData }) {
     const demo = LIVE_DEMOS[project.slug];
-    const hasChapters = !!CHAPTER_LOADERS[project.slug];
     const idx = projectsData.findIndex((p) => p.slug === project.slug);
     const next = projectsData[(idx + 1) % projectsData.length];
     const source = project.code || (project.url && project.url.includes("github") ? project.url : "");
@@ -64,12 +43,10 @@ export default function CaseStudyPage({ project }) {
                 </div>
             </header>
 
-            {hasChapters ? (
-                chapterData ? (
-                    <section id="scroll-cinema">
-                        <ScrollCinema chapters={chapterData.chapters} diagramStates={chapterData.diagramStates} accentColor={project.accentColor} demos={demo ? { [project.slug]: demo.Component } : {}} />
-                    </section>
-                ) : <div className="spin-wrap" style={{ minHeight: 240 }}><span className="spin" />loading the chapters</div>
+            {chapterData ? (
+                <section id="scroll-cinema">
+                    <ScrollCinema chapters={chapterData.chapters} diagramStates={chapterData.diagramStates} accentColor={project.accentColor} demos={demo ? { [project.slug]: demo.Component } : {}} />
+                </section>
             ) : (
                 <ClassicBody project={project} demo={demo} />
             )}

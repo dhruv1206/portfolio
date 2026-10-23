@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/app/hooks/use-prefers-reduced-motion";
+import { useHydrated } from "@/app/hooks/use-hydrated";
 
 // SVG architecture diagram that cross-fades between named states.
 //
@@ -103,7 +105,13 @@ export default function AnimatedArchitecture({
     activeStateId,
     className = "",
 }) {
-    const reduced = useReducedMotion();
+    const reduced = usePrefersReducedMotion();
+    // Drawn after hydration; the server's HTML has only the box, at the same
+    // size, so nothing moves. Server-rendered, a case study's eight diagrams
+    // (dozens of animated SVG elements each) made its HTML five times
+    // heavier and its first paint seconds later, for nothing a reader or a
+    // crawler needs before the prose around them.
+    const hydrated = useHydrated();
     const transition = reduced ? { duration: 0 } : SPRING;
     const fadeTransition = reduced ? { duration: 0 } : FADE;
 
@@ -136,6 +144,7 @@ export default function AnimatedArchitecture({
             style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}` }}
             data-active-state={activeStateId}
         >
+            {hydrated && <>
             <svg
                 viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
                 className="absolute inset-0 w-full h-full"
@@ -226,6 +235,7 @@ export default function AnimatedArchitecture({
                     {activeState.caption}
                 </motion.div>
             )}
+            </>}
         </div>
     );
 }

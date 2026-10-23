@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useReducedMotion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/app/hooks/use-prefers-reduced-motion";
 import AnimatedArchitecture from "./animated-architecture";
 import { eventBus } from "@/app/lib/event-bus";
 
@@ -18,7 +18,7 @@ import { eventBus } from "@/app/lib/event-bus";
 // each chapter's diagram inlined above its prose.
 
 export default function ScrollCinema({ chapters, diagramStates, accentColor = "#8b5cf6", demos = {} }) {
-    const reduced = useReducedMotion();
+    const reduced = usePrefersReducedMotion();
     const [activeIdx, setActiveIdx] = useState(0);
     const chapterEls = useRef(new Map());
     const [nodeCount, setNodeCount] = useState(0);
