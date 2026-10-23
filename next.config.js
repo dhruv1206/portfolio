@@ -141,6 +141,22 @@ const nextConfig = {
     // client-only providers below the route.
     cacheComponents: true,
 
+    // Clients that get every page whole: metadata in <head>, no streamed
+    // fallbacks, a real 404 for a missing article. A streamed page puts
+    // the blog's titles, canonicals and text after </head>, in hidden
+    // chunks that only JavaScript swaps into place, and AI crawlers do not
+    // run it. Next's default list (Next 16.2, shared/lib/router/utils/
+    // html-bots.js) covers Bingbot and link previews; Googlebot is added
+    // because on Vercel only this list skips the prerendered shell.
+    // Spelled as the bots spell themselves: Vercel's match may be
+    // case-sensitive.
+    htmlLimitedBots: new RegExp([
+        "[\\w-]+-Google|Google-[\\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight",
+        "Googlebot|bingbot|Applebot|YandexBot|Baiduspider",
+        "GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|PerplexityBot|Perplexity-User|meta-externalagent|meta-externalfetcher|Amazonbot|CCBot|DuckAssistBot|MistralAI-User|cohere-ai|YouBot|Bytespider|Diffbot",
+        "curl/|Wget/|python-requests|python-httpx|aiohttp|Go-http-client|node-fetch|undici|axios/|okhttp|Java/",
+    ].join("|")),
+
     // Compiler options for production
     compiler: {
         // Remove console.log in production
