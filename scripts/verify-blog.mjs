@@ -27,19 +27,29 @@ const article = (slug, title, body, i) => ({ id: 1000 + i, slug, title, descript
 // production (Vercel's optimizer answered 400).
 const MEDIA2_COVER = "https://media2.dev.to/dynamic/image/width=1000,height=420,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Farticles%2Fvvncdvkobaagznaw80ok.png";
 const state = { mode: "ok", retryAfter: "15", articles: [], hits: { list: 0, article: {} } };
+// dev.to's CDN as it behaves (October 2026): a copy is keyed on the path
+// and the query parameters dev.to knows, any other parameter is left out
+// of the key (so an unknown cache-buster does nothing), and a copy is
+// served with its Age for as long as the CDN keeps it. Step 10 drops
+// per_page from the key to stand for the buster breaking again.
+const KNOWN_PARAMS = ["username", "per_page", "page", "state", "tag", "tags", "top", "collection_id"];
+const cdn = { keyedOn: KNOWN_PARAMS, copies: new Map(), age: null };
 const mock = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
     const isList = url.pathname === "/api/articles";
     const slug = url.pathname.startsWith("/api/articles/dhruv1206/") ? decodeURIComponent(url.pathname.split("/").pop()) : null;
     if (isList) state.hits.list++;
     if (slug) state.hits.article[slug] = (state.hits.article[slug] || 0) + 1;
+    const key = `${url.pathname}?${cdn.keyedOn.filter((k) => url.searchParams.has(k)).map((k) => `${k}=${url.searchParams.get(k)}`).join("&")}`;
+    const copy = cdn.copies.get(key);
+    if (copy) { res.writeHead(copy.status, { "content-type": "application/json", age: String(cdn.age ?? Math.floor((Date.now() - copy.at) / 1000)) }); res.end(copy.body); return; }
     if (state.mode === "500") { res.writeHead(500); res.end("boom"); return; }
     if (state.mode === "429") { res.writeHead(429, { "retry-after": state.retryAfter }); res.end("slow down"); return; }
-    res.setHeader("content-type", "application/json");
-    if (isList) { res.end(JSON.stringify(state.articles.map(({ body_html, ...rest }) => rest))); return; }
-    const a = state.articles.find((x) => x.slug === slug);
-    if (!a) { res.writeHead(404); res.end(JSON.stringify({ error: "not found", status: 404 })); return; }
-    res.end(JSON.stringify(a));
+    const a = isList ? null : state.articles.find((x) => x.slug === slug);
+    const status = isList || a ? 200 : 404;
+    const body = JSON.stringify(isList ? state.articles.map(({ body_html, ...rest }) => rest) : a || { error: "not found", status: 404 });
+    cdn.copies.set(key, { status, body, at: Date.now() });
+    res.writeHead(status, { "content-type": "application/json" }); res.end(body);
 });
 await new Promise((r) => mock.listen(MOCK_PORT, "127.0.0.1", r));
 
@@ -130,7 +140,23 @@ try {
     await Promise.all(Array.from({ length: 40 }, () => get(`${BLOG}/`)));
     check("40 concurrent loads cost one dev.to read", state.hits.list - listBefore === 1, `${state.hits.list - listBefore} reads`);
 
-    // ---------- 10. routing ----------
+    // ---------- 10. the CDN stops honouring the buster ----------
+    // What happened to `v=` in October 2026: the buster drops out of the
+    // CDN's key, so every read gets the copy the CDN already holds.
+    cdn.keyedOn = KNOWN_PARAMS.filter((k) => k !== "per_page"); cdn.age = 123434;
+    await sleep(TTL + 500);
+    await get(`${BLOG}/`); // the CDN keeps this list from now on
+    state.articles = [article("hidden-post-gh78", "Post the CDN hid", "Hidden body.", 4), ...state.articles];
+    await sleep(TTL + 500);
+    await get(`${BLOG}/`);
+    check("if the CDN ignores the buster again, the server log says so", appLog.includes("the cache-buster has stopped working"));
+    r = await get(`${BLOG}/hidden-post-gh78`);
+    check("and an article missing from the CDN's old list is 'not answering', not a 404", r.status === 200 && r.html.includes("dev.to is not answering"), `status ${r.status}`);
+    cdn.keyedOn = KNOWN_PARAMS; cdn.age = null;
+    await sleep(TTL + 500);
+    check("once the buster works again, that article shows on the index", (await get(`${BLOG}/`)).html.includes("Post the CDN hid"));
+
+    // ---------- 11. routing ----------
     const moves = [
         [`${SITE}/blog`, `${BLOG}/`], [`${SITE}/blog/second-post-cd34`, `${BLOG}/second-post-cd34`],
         [`${BLOG}/blog`, "/"], [`${BLOG}/blog/second-post-cd34`, "/second-post-cd34"],
@@ -142,7 +168,7 @@ try {
     check("/api/og is served on the blog host", og.status === 200 && og.type.includes("image/png"), `${og.status} ${og.type}`);
     check("the main host still serves the homepage at /", (await get(`${SITE}/`)).html.includes("Machines you can run"));
 
-    // ---------- 11. in the browser ----------
+    // ---------- 12. in the browser ----------
     const browser = await chromium.launch({ channel: process.env.PW_CHANNEL || "chrome", headless: true });
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage(); const errors = [];

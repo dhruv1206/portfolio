@@ -18,6 +18,8 @@ const feed = createFeed();
 // DEVTO_API_ORIGIN exists for scripts/verify-blog.mjs, which points the
 // app at a local fake dev.to. Production never sets it.
 const api = () => `${process.env.DEVTO_API_ORIGIN || "https://dev.to"}/api`;
+// The feed sends every read with per_page set to a new number above 1000
+// (its cache-buster), which dev.to clamps to the 1000 asked for here.
 const listUrl = () => `${api()}/articles?username=${personalData.devUsername}&per_page=1000`;
 const articleUrl = (slug) => `${api()}/articles/${personalData.devUsername}/${encodeURIComponent(slug)}`;
 
