@@ -77,7 +77,7 @@ export default async function BlogDetails(props) {
                     mainEntityOfPage: url,
                     headline: blog.title,
                     description: describe(blog),
-                    ...(blog.cover_image ? { image: blog.cover_image } : {}),
+                    image: abs(blog.cover_image || ogImage({ title: blog.title, sub: BLOG_NAME, path: `/blog/${slug}` })),
                     datePublished: blog.published_at,
                     dateModified: blog.edited_at || blog.published_at,
                     author: { "@id": PERSON_ID },
